@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ハノイの塔 - ミリ秒計測対応</title>
+    <style>
+        /* CSS (変更なし) */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #game-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            width: 90%;
+            max-width: 800px;
+            height: 300px; 
+            margin: 20px 0;
+            padding-top: 50px;
+            border-bottom: 5px solid #333;
+        }
+
+        .peg {
+            position: relative;
+            width: 30%;
+            height: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            cursor: pointer; 
+        }
+
+        .peg-base {
+            position: absolute;
+            bottom: 0;
+            width: 8px;
+            height: 100%;
+            background-color: #555;
+            z-index: 1;
+        }
+
+        .disk {
+            position: relative;
+            border-radius: 5px;
+            margin-bottom: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: default;
+            transition: transform 0.3s, background-color 0.1s;
+            z-index: 2;
+        }
+
+        .disk.selected {
+            transform: translateY(-50px) scale(1.05);
+            border: 3px solid black;
+            box-sizing: border-box;
+        }
+
+        #controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #message {
+            font-weight: bold;
+            margin-top: 10px;
+            color: #007bff;
+        }
+
+        .guide {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>ハノイの塔</h1>
+
+    <div id="game-container">
+        <div id="peg1" class="peg">
+            <div class="peg-base"></div>
+        </div>
+        <div id="peg2" class="peg">
+            <div class="peg-base"></div>
+        </div>
+        <div id="peg3" class="peg">
+            <div class="peg-base"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <label for="disks">円盤の数 (3-100):</label>
+        <input type="number" id="disks" value="3" min="3" max="100">
+        <button onclick="initGame()">ゲーム開始/リセット</button>
+        <p id="message">始点の杭 (1, 2, 3) を押してください。</p>
+        <p>手数: <span id="moves">0</span> / 最小手数: <span id="min-moves"></span></p>
+        <p>経過時間: <span id="time-elapsed">00:00.00</span></p>
+        <p>ベストタイム (現行円盤数): <span id="best-time">---</span></p>
+        <p class="guide">**操作方法**: 始点となる杭をクリックまたはキー (1, 2, 3) を押し、終点となる杭をクリックまたはキーを押します。キャンセルは Esc キー。</p>
+    </div>
+
+    <script>
+        // JS
+
+        // グローバル変数
+        let disksCount = 3;
+        let selectedDisk = null;
+        let sourcePegIndex = -1;
+        let moves = 0;
+        let minMoves = 0;
+
+        // タイマー関連
+        let timerInterval = null;
+        let startTime = 0;
+        let isTimerRunning = false;
+
+        // DOM要素
+        const pegElements = [
+            document.getElementById('peg1'),
+            document.getElementById('peg2'),
+            document.getElementById('peg3')
+        ];
+        const movesDisplay = document.getElementById('moves');
+        const minMovesDisplay = document.getElementById('min-moves');
+        const messageDisplay = document.getElementById('message');
+        const disksInput = document.getElementById('disks');
+        const timeDisplay = document.getElementById('time-elapsed');
+        const bestTimeDisplay = document.getElementById('best-time');
+
+        // 杭の固定パラメータ (CSSと同期)
+        const PEG_HEIGHT = 300;
+        const DISK_MARGIN = 2;
+        const MIN_DISK_HEIGHT = 1;
+        const MAX_PRACTICAL_DISKS = 100;
+
+        // --- イベントリスナーの追加 ---
+
+        // ページロード時にゲームを初期化
+        window.onload = () => {
+            disksInput.setAttribute('max', MAX_PRACTICAL_DISKS);
+            initGame();
+            
+            // キーボードイベントリスナー
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // マウスイベントリスナー
+            pegElements.forEach(peg => {
+                peg.addEventListener('click', handleClickPeg);
+            });
+        };
+
+        /**
+         * 杭がクリックされたときの処理
+         */
+        function handleClickPeg(event) {
+            if (messageDisplay.textContent.includes("おめでとう")) {
+                return;
+            }
+
+            const pegId = event.currentTarget.id;
+            const pegIndex = parseInt(pegId.replace('peg', '')) - 1;
+
+            if (pegIndex >= 0 && pegIndex <= 2) {
+
+                // --- 1. 始点 (sourcePegIndex) が未選択の場合 ---
+                if (sourcePegIndex === -1) {
+                    const topDisk = pegElements[pegIndex].querySelector('.disk:last-child');
+
+                    if (topDisk) {
+                        // 最初の有効な動きでタイマーをスタート
+                        if (!isTimerRunning) {
+                            startTimer();
+                            isTimerRunning = true;
+                        }
+
+                        sourcePegIndex = pegIndex;
+                        selectedDisk = topDisk;
+                        selectedDisk.classList.add('selected');
+                        messageDisplay.textContent = `杭 ${pegIndex + 1} を始点として選択しました。移動先の杭 (1, 2, 3) をクリックまたは押してください。`;
+                    } else {
+                        messageDisplay.textContent = `杭 ${pegIndex + 1} には動かせる円盤がありません。`;
+                    }
+
+                }
+                // --- 2. 始点 (sourcePegIndex) が選択されている場合 (終点を選択) ---
+                else {
+                    const targetPegIndex = pegIndex;
+
+                    // 始点と終点が同じ杭の場合、選択をリセット
+                    if (sourcePegIndex === targetPegIndex) {
+                        resetSelection();
+                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。始点の杭 (1, 2, 3) をクリックまたは押してください。";
+                        return;
+                    }
+
+                    // 移動ロジックの実行
+                    const isSuccess = attemptMove(sourcePegIndex, targetPegIndex);
+
+                    // 移動後の後処理 (選択解除とメッセージ更新)
+                    if (isSuccess) {
+                        checkWin();
+                    }
+
+                    // 選択状態をリセット
+                    resetSelection();
+                }
+            }
+        }
+
+
+        /**
+        * キーが押されたときの処理 (メインロジック)
+        */
+        function handleKeyPress(event) {
+            if (messageDisplay.textContent.includes("おめでとう")) {
+                return;
+            }
+
+            const key = event.key;
+            const pegIndex = parseInt(key) - 1;
+
+            if (key === '1' || key === '2' || key === '3') {
+
+                // --- 1. 始点 (sourcePegIndex) が未選択の場合 ---
+                if (sourcePegIndex === -1) {
+                    const topDisk = pegElements[pegIndex].querySelector('.disk:last-child');
+                    
+                    if (topDisk) {
+                        // 最初の有効な動きでタイマーをスタート
+                        if (!isTimerRunning) {
+                            startTimer();
+                            isTimerRunning = true;
+                        }
+
+                        sourcePegIndex = pegIndex;
+                        selectedDisk = topDisk;
+                        selectedDisk.classList.add('selected');
+                        messageDisplay.textContent = `杭 ${key} を始点として選択しました。移動先の杭 (1, 2, 3) をクリックまたは押してください。`;
+                    } else {
+                        messageDisplay.textContent = `杭 ${key} には動かせる円盤がありません。`;
+                    }
+                } else {
+                    const targetPegIndex = pegIndex;
+                    if (sourcePegIndex === targetPegIndex) {
+                        resetSelection();
+                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。始点の杭 (1, 2, 3) をクリックまたは押してください。";
+                        return;
+                    }
+                    const isSuccess = attemptMove(sourcePegIndex, targetPegIndex);
+                    if (isSuccess) {
+                        checkWin();
+                    }
+                    resetSelection();
+                }
+            } else if (key === 'Escape') {
+                resetSelection();
+                messageDisplay.textContent = "選択をリセットしました。始点の杭 (1, 2, 3) をクリックまたは押してください。";
+            }
+        }
+
+        /**
+        * 円盤の移動を試行し、成功/失敗を返す
+        */
+        function attemptMove(sourceIndex, targetIndex) {
+            const targetPeg = pegElements[targetIndex];
+            const topDiskOnTarget = targetPeg.querySelector('.disk:last-child');
+            const selectedSize = parseInt(selectedDisk.dataset.size);
+            const topDiskSize = topDiskOnTarget ? parseInt(topDiskOnTarget.dataset.size) : Infinity;
+
+            if (selectedSize < topDiskSize) {
+                selectedDisk.parentNode.removeChild(selectedDisk);
+                targetPeg.appendChild(selectedDisk);
+                moves++;
+                movesDisplay.textContent = moves;
+                messageDisplay.textContent = `杭 ${sourceIndex + 1} から杭 ${targetIndex + 1} へ移動しました。次の始点 (1, 2, 3) をクリックまたは押してください。`;
+                return true;
+            } else {
+                messageDisplay.textContent = "ルール違反です！小さい円盤の上に大きな円盤は置けません。";
+                return false;
+            }
+        }
+
+        /**
+        * 選択状態をリセットする共通関数
+        */
+        function resetSelection() {
+            if (selectedDisk) {
+                selectedDisk.classList.remove('selected');
+            }
+            selectedDisk = null;
+            sourcePegIndex = -1;
+        }
+
+        // --- タイマー関数 ---
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            startTime = Date.now();
+            // 10ミリ秒ごとにタイマーを更新 (★ここを修正★)
+            timerInterval = setInterval(updateTimer, 10); 
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            
+            // ミリ秒を秒とミリ秒に変換
+            const totalSeconds = Math.floor(elapsed / 1000);
+            const milliseconds = Math.floor(elapsed % 1000 / 10); // 10ミリ秒単位 (100分の1秒)
+            
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            // 'mm:ss.SS' 形式にフォーマット (★ここを修正★)
+            const formattedTime = 
+                `${String(minutes).padStart(2, '0')}:` +
+                `${String(seconds).padStart(2, '0')}.` +
+                `${String(milliseconds).padStart(2, '0')}`;
+            
+            timeDisplay.textContent = formattedTime;
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function resetTimerDisplay() {
+            stopTimer();
+            timeDisplay.textContent = "00:00.00";
+        }
+        
+        // --- ベストタイム記録関連の関数 ---
+
+        function getBestTime(disks) {
+            const key = `hanoi_best_time_${disks}`;
+            const storedTime = localStorage.getItem(key);
+            const timeValue = parseInt(storedTime, 10);
+            return !isNaN(timeValue) && timeValue > 0 ? timeValue : null;
+        }
+
+        function setBestTime(disks, timeMs) {
+            const key = `hanoi_best_time_${disks}`;
+            localStorage.setItem(key, timeMs.toString());
+        }
+
+        function formatTime(ms) {
+            if (ms === null) return "---";
+            
+            const totalSeconds = Math.floor(ms / 1000);
+            const milliseconds = Math.floor(ms % 1000 / 10); // 10ミリ秒単位 (100分の1秒)
+            
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            // 'mm:ss.SS' 形式にフォーマット (★ここを修正★)
+            return `${String(minutes).padStart(2, '0')}:` +
+                   `${String(seconds).padStart(2, '0')}.` +
+                   `${String(milliseconds).padStart(2, '0')}`;
+        }
+
+
+        /**
+        * ゲームの初期化
+        */
+        function initGame() {
+            let newDisksCount = parseInt(disksInput.value);
+
+            if (isNaN(newDisksCount) || newDisksCount < 3 || newDisksCount > MAX_PRACTICAL_DISKS) {
+                alert(`円盤の数は3から${MAX_PRACTICAL_DISKS}の間で設定してください。3枚に戻します。`);
+                disksCount = 3;
+                disksInput.value = 3;
+            } else {
+                disksCount = newDisksCount;
+            }
+
+            minMoves = Math.pow(2, disksCount) - 1;
+            let minMovesStr = minMoves.toString();
+            if (minMovesStr.length > 15) {
+                minMovesStr = minMoves.toExponential(2);
+            }
+
+            // 変数をリセット
+            resetSelection();
+            moves = 0;
+            movesDisplay.textContent = moves;
+            minMovesDisplay.textContent = minMovesStr;
+            messageDisplay.textContent = "始点の杭 (1, 2, 3) を押してください。";
+
+            // タイマーのリセット
+            resetTimerDisplay();
+            isTimerRunning = false;
+
+            // ベストタイムを表示
+            const currentBestTimeMs = getBestTime(disksCount);
+            bestTimeDisplay.textContent = formatTime(currentBestTimeMs);
+
+            // すべての円盤を削除
+            pegElements.forEach(peg => {
+                const disks = peg.querySelectorAll('.disk');
+                disks.forEach(disk => disk.remove());
+            });
+
+            // --- 動的なサイズ計算 ---
+            const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
+            const availableHeight = PEG_HEIGHT - totalMarginHeight;
+            const diskHeight = Math.floor(availableHeight / disksCount);
+
+            if (diskHeight < MIN_DISK_HEIGHT) {
+                alert(`円盤の数が多すぎます (${disksCount}枚)。円盤の高さが${MIN_DISK_HEIGHT}px未満になるため、数を減らしてください。`);
+                disksInput.value = 3;
+                initGame();
+                return;
+            }
+
+            const MIN_WIDTH = 50;
+            const MAX_WIDTH = 180;
+            const widthRange = MAX_WIDTH - MIN_WIDTH;
+
+            // 最初の杭に円盤を配置
+            for (let i = disksCount; i >= 1; i--) {
+                const disk = document.createElement('div');
+                disk.classList.add('disk');
+                disk.dataset.size = i;
+
+                const divisor = disksCount - 1 || 1;
+                const widthFactor = (i - 1) / divisor;
+                const diskWidth = MIN_WIDTH + widthFactor * widthRange;
+
+                disk.style.width = `${diskWidth}px`;
+                disk.style.height = `${diskHeight}px`;
+
+                const hue = (i / disksCount) * 360;
+                disk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+
+                pegElements[0].appendChild(disk);
+            }
+        }
+
+        /**
+        * 勝利判定
+        */
+        function checkWin() {
+            const winCondition = (pegElements[1].querySelectorAll('.disk').length === disksCount) ||
+                                 (pegElements[2].querySelectorAll('.disk').length === disksCount);
+
+            if (winCondition) {
+                stopTimer();
+                isTimerRunning = false;
+
+                const finalTimeMs = Date.now() - startTime;
+                const finalTimeFormatted = formatTime(finalTimeMs);
+                
+                let winMessage = `🎉 おめでとうございます！ ${disksCount}個の円盤を移動させました。`;
+                if (moves === minMoves) {
+                    winMessage += ` 最小手数 (${minMovesDisplay.textContent}手) でクリアです！`;
+                } else {
+                    winMessage += ` 手数: ${moves}回 (最小手数: ${minMovesDisplay.textContent}回)`;
+                }
+
+                let bestTimeMessage = ` 🏆 タイム: ${finalTimeFormatted}`;
+
+                const currentBestTimeMs = getBestTime(disksCount);
+                
+                if (currentBestTimeMs === null || finalTimeMs < currentBestTimeMs) {
+                    setBestTime(disksCount, finalTimeMs);
+                    bestTimeDisplay.textContent = finalTimeFormatted;
+                    bestTimeMessage += " (✨ **NEW RECORD!**)";
+                } else {
+                    bestTimeMessage += ` (ベスト: ${formatTime(currentBestTimeMs)})`;
+                }
+
+                winMessage += bestTimeMessage;
+                messageDisplay.textContent = winMessage;
+            }
+        }
+    </script>
+
+</body>
+</html>
