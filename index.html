@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ハノイの塔 - ボット速度選択対応</title>
+    <title>ハノイの塔 - 高速ボット処理軽減</title>
     <style>
         /* CSS */
         body {
@@ -56,7 +56,6 @@
             margin-bottom: 2px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             cursor: default;
-            /* ★アニメーション時間を短縮★ */
             transition: transform 0.15s, background-color 0.1s; 
             z-index: 2;
         }
@@ -172,7 +171,6 @@
         const disksInput = document.getElementById('disks');
         const timeDisplay = document.getElementById('time-elapsed');
         const bestTimeDisplay = document.getElementById('best-time');
-        // ★DOM要素を追加★
         const botSpeedSelect = document.getElementById('bot-speed'); 
 
         // 杭の固定パラメータ (CSSと同期)
@@ -183,25 +181,15 @@
 
         // --- イベントリスナーの追加 ---
 
-        // ページロード時にゲームを初期化
         window.onload = () => {
             disksInput.setAttribute('max', MAX_PRACTICAL_DISKS);
             initGame();
-            
             document.addEventListener('keydown', handleKeyPress);
-            
             pegElements.forEach(peg => {
                 peg.addEventListener('click', handleClickPeg);
             });
         };
 
-        // ... (handleClickPeg, handleKeyPress, attemptMove, resetSelection, startTimer, updateTimer, stopTimer, resetTimerDisplay, getBestTime, setBestTime, formatTime の関数は前回のコードと変更なし) ...
-        
-        // =================================================================
-        // 以下は、前回のコードの関数ですが、文字数のため省略します。
-        // ただし、ボットの速度選択に関係のないロジックはそのままです。
-        // =================================================================
-        
         function handleClickPeg(event) {
             if (isBotRunning) {
                 messageDisplay.textContent = "ボットが実行中のため、手動操作はできません。";
@@ -373,7 +361,7 @@
         }
 
         /**
-         * ボットによるゲームの自動開始と実行 (★速度適用ロジックを修正★)
+         * ボットによるゲームの自動開始と実行 (★処理軽減ロジックを修正★)
          */
         function startBot() {
             if (isBotRunning) {
@@ -384,9 +372,10 @@
             initGame(); 
             isBotRunning = true;
             
-            // ★選択された速度を取得し、アニメーション遅延を設定★
             const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
-            const animationDelay = 150; // CSSのtransform transitionに合わせる
+            // 150ms (速い)以下の場合は、アニメーションをスキップ
+            const shouldSkipAnimation = selectedSpeedMs <= 150; 
+            const animationDelay = 150; 
             
             messageDisplay.textContent = "🤖 ボットが最小手数での解決を開始しました。";
 
@@ -395,7 +384,6 @@
             startTimer();
             isTimerRunning = true;
 
-            // ★選択された速度を適用★
             const botInterval = setInterval(() => {
                 if (moveQueue.length > 0) {
                     const nextMove = moveQueue.shift();
@@ -406,21 +394,35 @@
                     const diskToMove = sourcePeg.querySelector('.disk:last-child');
                     
                     if (diskToMove) {
-                        selectedDisk = diskToMove;
-                        selectedDisk.classList.add('selected');
                         
-                        setTimeout(() => {
-                            selectedDisk.parentNode.removeChild(selectedDisk);
-                            targetPeg.appendChild(selectedDisk);
+                        if (shouldSkipAnimation) {
+                            // ★アニメーションスキップ処理 (高速)★
+                            // DOM操作のみを実行し、リフロー・再描画の負荷を最小限に抑える
+                            diskToMove.parentNode.removeChild(diskToMove);
+                            targetPeg.appendChild(diskToMove);
                             
                             moves++;
                             movesDisplay.textContent = moves;
-                            
-                            selectedDisk.classList.remove('selected');
-                            selectedDisk = null;
-
                             checkWin(); 
-                        }, animationDelay);
+
+                        } else {
+                            // ★通常のアニメーション処理★
+                            selectedDisk = diskToMove;
+                            selectedDisk.classList.add('selected');
+                            
+                            setTimeout(() => {
+                                selectedDisk.parentNode.removeChild(selectedDisk);
+                                targetPeg.appendChild(selectedDisk);
+                                
+                                moves++;
+                                movesDisplay.textContent = moves;
+                                
+                                selectedDisk.classList.remove('selected');
+                                selectedDisk = null;
+
+                                checkWin(); 
+                            }, animationDelay);
+                        }
                     }
 
                 } else {
@@ -430,9 +432,7 @@
             }, selectedSpeedMs);
         }
 
-        /**
-        * ゲームの初期化
-        */
+
         function initGame() {
             let newDisksCount = parseInt(disksInput.value);
 
@@ -504,9 +504,6 @@
             }
         }
 
-        /**
-        * 勝利判定
-        */
         function checkWin() {
             const winCondition = (pegElements[1].querySelectorAll('.disk').length === disksCount) ||
                                  (pegElements[2].querySelectorAll('.disk').length === disksCount);
