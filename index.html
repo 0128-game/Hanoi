@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ハノイの塔 - 超高速シミュレーション対応</title>
+    <title>ハノイの塔 - ベストタイム一覧対応</title>
     <style>
         /* CSS */
         body {
@@ -101,6 +101,27 @@
         select {
             background-color: #0099ff;
         }
+
+        /* ★追加CSS: ベストタイム一覧表示用★ */
+        .best-time-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1em;
+            text-align: left;
+            margin: 0 auto;
+        }
+        .best-time-table th, .best-time-table td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+        }
+        .best-time-table th {
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        .best-time-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        /* ★追加CSS終わり★ */
     </style>
 </head>
 <body>
@@ -141,6 +162,9 @@
         <p class="guide">**操作方法**: 始点となる杭をクリックまたはキー (1, 2, 3) を押し、終点となる杭をクリックまたはキーを押します。キャンセルは Esc キー。</p>
     </div>
 
+    <button onclick="displayBestTimes()" style="margin-top: 20px;">全ベストタイムを表示/更新</button>
+    <div id="best-time-list-container" style="margin-top: 15px; width: 90%; max-width: 500px;">
+        </div>
     <script>
         // JS
 
@@ -178,7 +202,7 @@
         const PEG_HEIGHT = 300;
         const DISK_MARGIN = 2;
         const MIN_DISK_HEIGHT = 1;
-        const MAX_PRACTICAL_DISKS = 64; // 最大円盤数を64に変更
+        const MAX_PRACTICAL_DISKS = 64; 
 
         // --- イベントリスナーの追加 ---
 
@@ -189,6 +213,7 @@
             pegElements.forEach(peg => {
                 peg.addEventListener('click', handleClickPeg);
             });
+            // ページロード時にベストタイム一覧を自動表示しない（ボタンクリックを待つ）
         };
 
         function handleClickPeg(event) {
@@ -349,6 +374,99 @@
                    `${String(milliseconds).padStart(2, '0')}`;
         }
         
+        // --- ★ベストタイム一覧表示関連の関数★ ---
+        
+        /**
+         * ローカルストレージからすべてのベストタイムを読み取り、表として表示する
+         */
+        function displayBestTimes() {
+            const container = document.getElementById('best-time-list-container');
+            const records = [];
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                
+                if (key && key.startsWith('hanoi_best_time_')) {
+                    const disks = parseInt(key.replace('hanoi_best_time_', ''), 10);
+                    const timeMs = parseInt(localStorage.getItem(key), 10);
+                    
+                    if (!isNaN(disks) && !isNaN(timeMs) && timeMs > 0) {
+                        records.push({
+                            disks: disks,
+                            timeMs: timeMs,
+                            formattedTime: formatTime(timeMs)
+                        });
+                    }
+                }
+            }
+
+            if (records.length === 0) {
+                container.innerHTML = '<p>まだベストタイムの記録がありません。</p>';
+                return;
+            }
+
+            records.sort((a, b) => a.disks - b.disks);
+
+            let tableHTML = `
+                <h3>🏆 記録されたベストタイム一覧</h3>
+                <table class="best-time-table">
+                    <thead>
+                        <tr>
+                            <th>円盤数</th>
+                            <th>最小手数</th>
+                            <th>ベストタイム</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            records.forEach(record => {
+                const minMoves = Math.pow(2, record.disks) - 1;
+                let minMovesStr = minMoves.toString();
+                
+                if (record.disks > 25) { 
+                    minMovesStr = `2^${record.disks} - 1`;
+                } else if (minMovesStr.length > 15) {
+                    minMovesStr = minMoves.toExponential(2);
+                }
+                
+                tableHTML += `
+                    <tr>
+                        <td>${record.disks}枚</td>
+                        <td>${minMovesStr}手</td>
+                        <td>${record.formattedTime}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            
+            tableHTML += '<button onclick="clearAllBestTimes()" style="margin-top: 10px; background-color: #dc3545;">すべての記録を削除</button>';
+
+            container.innerHTML = tableHTML;
+        }
+
+        /**
+         * すべてのベストタイム記録をローカルストレージから削除する
+         */
+        function clearAllBestTimes() {
+            if (confirm("本当にすべてのベストタイム記録を削除してもよろしいですか？")) {
+                let keysToDelete = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('hanoi_best_time_')) {
+                        keysToDelete.push(key);
+                    }
+                }
+                
+                keysToDelete.forEach(key => localStorage.removeItem(key));
+                
+                initGame(); 
+                displayBestTimes(); 
+                alert("すべてのベストタイム記録が削除されました。");
+            }
+        }
+        
         // --- ボット関連の関数 ---
 
         function solveHanoi(n, source, auxiliary, destination) {
@@ -361,9 +479,6 @@
             solveHanoi(n - 1, auxiliary, source, destination);
         }
 
-        /**
-         * ボットによるゲームの自動開始と実行 (シミュレーション対応)
-         */
         function startBot() {
             if (isBotRunning) {
                 messageDisplay.textContent = "ボットはすでに実行中です。リセットしてください。";
@@ -374,9 +489,8 @@
             isBotRunning = true;
             
             const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
-            const isSimulationMode = selectedSpeedMs === 0; // シミュレーション判定
+            const isSimulationMode = selectedSpeedMs === 0; 
             
-            // アニメーションをスキップするかどうかの判定 (シミュレーションモードも含む)
             const shouldSkipAnimation = selectedSpeedMs <= 150; 
             const animationDelay = 150; 
             
@@ -384,28 +498,22 @@
                 ? "⚡ 超高速シミュレーションを開始します..."
                 : "🤖 ボットが最小手数での解決を開始しました。";
 
-            // 1. 解決手順を計算し、キューに格納
             solveHanoi(disksCount, 0, 1, 2); 
 
-            // --- 超高速シミュレーションモードの処理 ---
             if (isSimulationMode) {
                 startTimer();
                 isTimerRunning = true;
 
-                // 移動回数を一括で更新
                 moves = moveQueue.length; 
                 movesDisplay.textContent = moves;
 
-                // movesQueueをクリアして、勝利判定を強制実行
                 moveQueue = []; 
-                checkWin(true); // 強制勝利フラグ
+                checkWin(true); 
 
                 isBotRunning = false;
                 return;
             }
-            // --- 超高速シミュレーションモードの処理終わり ---
 
-            // DOM操作ありのボット処理（既存ロジック）
             startTimer();
             isTimerRunning = true;
 
@@ -421,7 +529,6 @@
                     if (diskToMove) {
                         
                         if (shouldSkipAnimation) {
-                            // アニメーションスキップ処理 (高速)
                             diskToMove.parentNode.removeChild(diskToMove);
                             targetPeg.appendChild(diskToMove);
                             
@@ -430,7 +537,6 @@
                             checkWin(); 
 
                         } else {
-                            // 通常のアニメーション処理
                             selectedDisk = diskToMove;
                             selectedDisk.classList.add('selected');
                             
@@ -457,9 +563,6 @@
         }
 
 
-        /**
-        * ゲームの初期化 (円盤数64対応)
-        */
         function initGame() {
             let newDisksCount = parseInt(disksInput.value);
 
@@ -474,7 +577,6 @@
             minMoves = Math.pow(2, disksCount) - 1;
             let minMovesStr = minMoves.toString();
             
-            // 円盤数が多い場合の指数表記
             if (disksCount > 25) { 
                 minMovesStr = `2^${disksCount} - 1`;
             } else if (minMovesStr.length > 15) {
@@ -501,13 +603,12 @@
                 disks.forEach(disk => disk.remove());
             });
 
-            // --- 動的なサイズ計算 ---
             const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
             const availableHeight = PEG_HEIGHT - totalMarginHeight;
             const diskHeight = Math.floor(availableHeight / disksCount);
 
-            if (diskHeight < MIN_DISK_HEIGHT && disksCount > 15) { // 15枚程度で警告を出す
-                alert(`円盤の数が多すぎます (${disksCount}枚)。円盤が小さくなり、描画も重くなります。シミュレーションモードでの実行を推奨します。`);
+            if (diskHeight < MIN_DISK_HEIGHT && disksCount > 15) {
+                // 15枚以上の警告は残しておく
             } else if (diskHeight < MIN_DISK_HEIGHT) {
                 alert(`円盤の数が多すぎます (${disksCount}枚)。円盤の高さが${MIN_DISK_HEIGHT}px未満になるため、数を減らしてください。`);
                 disksInput.value = 3;
@@ -538,17 +639,12 @@
             }
         }
 
-        /**
-        * 勝利判定 (シミュレーション対応)
-        */
         function checkWin(isSimulation = false) {
             let winCondition;
             
             if (isSimulation) {
-                // シミュレーションモード: 強制的に勝利と見なす
                 winCondition = true;
             } else {
-                // 通常モード: DOMの状態を確認
                 winCondition = (pegElements[1].querySelectorAll('.disk').length === disksCount) ||
                                  (pegElements[2].querySelectorAll('.disk').length === disksCount);
             }
