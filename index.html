@@ -115,9 +115,10 @@
             border: 1px solid #ccc;
             background-color: white;
             padding: 7px 10px;
-            appearance: none; /* OS標準のスタイルを無効化して統一感を出す */
+            appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
+            /* カスタムのドロップダウン矢印 */
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="%23333"><polygon points="0,0 10,0 5,10"/></svg>');
             background-repeat: no-repeat;
             background-position: right 8px center;
@@ -305,7 +306,7 @@
             const rateRow = document.getElementById('rate-display');
 
             if (mode === 'versus') {
-                botSpeedSelect.parentElement.style.display = 'none'; // 親要素ごと非表示
+                botSpeedSelect.parentElement.style.display = 'none'; // ボット速度の行を非表示
                 rateRow.style.display = 'block';
                 startButton.textContent = 'ボットと対戦開始';
                 
@@ -314,7 +315,7 @@
                 wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%';
             } else {
-                botSpeedSelect.parentElement.style.display = 'flex'; // 親要素ごと表示
+                botSpeedSelect.parentElement.style.display = 'flex'; // ボット速度の行を表示
                 rateRow.style.display = 'none';
                 startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
                 
@@ -468,7 +469,8 @@
                                     const speedMs = parseInt(botSpeedSelect.value, 10);
                                     if(speedMs > 0) startBotMoves(speedMs);
                                 } else {
-                                    // 円盤数が0の時などにここに来るが、initGameで3以上に強制しているので基本なし
+                                    // 円盤数が3以上に強制されているため、基本的には発生しないはず
+                                    console.error("Bot Start Error: Move queue generation failed.");
                                     messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
                                 }
                             }
@@ -495,7 +497,6 @@
         }
         
         function handleKeyPress(event) {
-            // ... (省略: キー操作ロジックはhandleClickPegと同様にボット起動を含む) ...
             if (isBotRunning && gameModeSelect.value !== 'versus') return;
             if (playerWon || botWon) return;
 
@@ -517,6 +518,7 @@
                                     const speedMs = parseInt(botSpeedSelect.value, 10);
                                     if(speedMs > 0) startBotMoves(speedMs);
                                 } else {
+                                     console.error("Bot Start Error: Move queue generation failed (Key Press).");
                                      messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
                                 }
                             }
@@ -583,7 +585,7 @@
             sourcePegIndex = -1;
         }
 
-        // --- タイマーとベストタイム (省略) ---
+        // --- タイマーとベストタイム (省略: 修正なし) ---
         
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -723,6 +725,7 @@
                 if (playerWon && gameMode === 'versus') {
                     clearInterval(botInterval);
                     isBotRunning = false;
+                    console.log("Bot Stop: Player won.");
                     return;
                 }
                 
@@ -730,10 +733,7 @@
                 if (moveQueue.length === 0 || botWon) {
                     clearInterval(botInterval);
                     isBotRunning = false;
-                    if (gameMode === 'versus' && !botWon) {
-                       // 対戦モードでキューが空だがプレイヤーが勝っていない場合（ボットが勝てなかった）
-                       // 特にアクションは不要だが、インターバルは停止
-                    }
+                    console.log("Bot Stop: Queue empty or Bot won.");
                     return;
                 }
                 
@@ -777,7 +777,7 @@
                     }
                 } else {
                     // 【実行時チェック 4】円盤要素がない場合（何か問題が発生した可能性）
-                    console.error("Bot Error: Source peg is empty but move queue suggests a move.");
+                    console.error(`Bot Error: Source peg ${nextMove.from + 1} is empty but move queue suggests a move. Stopping bot.`);
                     clearInterval(botInterval);
                     isBotRunning = false;
                     messageDisplay.textContent = "🚨 ボット動作エラー：予期せぬ盤面状態のため停止しました。リセットしてください。";
@@ -787,7 +787,7 @@
         }
 
 
-        // --- 勝利判定とレート更新 (省略) ---
+        // --- 勝利判定とレート更新 (省略: 修正なし) ---
         
         /**
          * プレイヤーの勝利判定 (ボット単独モードの終了処理も兼ねる)
@@ -893,7 +893,7 @@
             rateDisplayElement.textContent = playerRate;
         }
 
-        // --- ベストタイム一覧表示 (省略) ---
+        // --- ベストタイム一覧表示 (省略: 修正なし) ---
         function displayBestTimes() {
             const container = document.getElementById('best-time-list-container');
             const records = [];
