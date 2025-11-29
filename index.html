@@ -39,11 +39,9 @@
         }
 
         .peg.player-peg {
-            /* プレイヤー盤面でのカーソルは有効 */
             cursor: pointer; 
         }
         .peg.bot-peg {
-            /* ボット盤面でのカーソルは無効 */
             cursor: default; 
         }
 
@@ -85,20 +83,22 @@
         }
         
         /* P要素（メッセージやステータス表示）は横いっぱいに使う */
-        #controls p, #controls label[for="disks"], #controls label[for="game-mode"], #controls label[for="bot-speed"] {
+        #controls p, #controls label {
+            /* 全てのラベルとP要素を中央揃え、幅100%に */
             width: 100%;
             margin-bottom: 5px;
             text-align: center;
         }
         
-        /* ボタンと選択要素のスタイルを復元 */
+        /* ボタンと選択要素のスタイル */
         button, select, input[type="number"] {
             padding: 8px 12px;
             font-size: 16px;
             cursor: pointer;
             border-radius: 5px;
-            margin: 0 5px;
+            margin: 0 5px 10px 5px; /* 下にマージン追加 */
             box-sizing: border-box;
+            display: inline-block; /* ドロップダウンリストが崩れないように */
         }
         
         button {
@@ -112,9 +112,17 @@
             background-color: #0056b3;
         }
 
-        input[type="number"], select {
+        /* セレクトボックスのスタイルを修正 */
+        select {
             border: 1px solid #ccc;
             background-color: white;
+            padding: 7px 10px; /* ボタンと高さを揃えるため微調整 */
+        }
+        
+        /* 円盤数の入力欄の幅を調整 */
+        input[type="number"] {
+             width: 60px;
+             padding: 7px 5px;
         }
 
         #message {
@@ -179,26 +187,30 @@
     </div>
 
     <div id="controls">
-        <label for="disks">円盤の数 (3-64):</label> 
-        <input type="number" id="disks" value="3" min="3" max="64" style="width: 60px;">
-        <button onclick="initGame()">ゲーム開始/リセット</button>
-        <button onclick="startBot()">ボット実行/対戦開始</button>
-        
-        <label for="game-mode" style="color: #6a0dad; font-weight: bold; margin-left: 10px;">モード選択:</label>
-        <select id="game-mode" onchange="updateModeDisplay()">
-            <option value="manual" selected>ボットなし (手動)</option>
-            <option value="bot_only">ボット (自動クリア)</option>
-            <option value="versus">ボットと対戦</option>
-        </select>
-        
-        <label for="bot-speed" style="color: #007bff; font-weight: bold; margin-left: 10px;">ボット速度:</label>
-        <select id="bot-speed">
-            <option value="500">遅い (0.5秒)</option>
-            <option value="300" selected>標準 (0.3秒)</option>
-            <option value="150">速い (0.15秒)</option>
-            <option value="10">処理限界 (0.01秒)</option>
-            <option value="0">超高速シミュレーション</option> 
-        </select>
+        <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
+            <label for="disks">円盤の数 (3-64):</label> 
+            <input type="number" id="disks" value="3" min="3" max="64">
+            <button onclick="initGame()">ゲーム開始/リセット</button>
+            <button onclick="startBot()">ボット実行/対戦開始</button>
+        </div>
+
+        <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
+            <label for="game-mode" style="width: auto; color: #6a0dad; font-weight: bold;">モード選択:</label>
+            <select id="game-mode" onchange="updateModeDisplay()">
+                <option value="manual" selected>ボットなし (手動)</option>
+                <option value="bot_only">ボット (自動クリア)</option>
+                <option value="versus">ボットと対戦</option>
+            </select>
+            
+            <label for="bot-speed" style="width: auto; color: #007bff; font-weight: bold;">ボット速度:</label>
+            <select id="bot-speed">
+                <option value="500">遅い (0.5秒)</option>
+                <option value="300" selected>標準 (0.3秒)</option>
+                <option value="150">速い (0.15秒)</option>
+                <option value="10">処理限界 (0.01秒)</option>
+                <option value="0">超高速シミュレーション</option> 
+            </select>
+        </div>
         
         <p id="rate-display" style="display: none;">現在のレート: <span id="player-rate">1000</span></p>
         <p id="message">モードを選択し、円盤の数と速度を設定してゲーム開始/リセットを押してください。</p>
@@ -280,7 +292,7 @@
         };
         
         /**
-         * モード選択に応じてUIとレイアウトを更新する
+         * モード選択に応じてUIとレイアウトを更新する (画面分割の制御)
          */
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
@@ -294,8 +306,8 @@
                 
                 // 画面分割を適用
                 botContainer.style.display = 'block'; 
-                wrapper.style.maxWidth = '1000px'; 
-                playerContainer.style.width = '48%';
+                wrapper.style.maxWidth = '1000px'; // 2画面分の幅
+                playerContainer.style.width = '48%'; // プレイヤー側の幅を半分に
             } else {
                 botSpeedSelect.style.display = 'inline-block';
                 rateRow.style.display = 'none';
@@ -303,8 +315,8 @@
                 
                 // 画面分割を解除
                 botContainer.style.display = 'none'; 
-                wrapper.style.maxWidth = '500px'; 
-                playerContainer.style.width = '100%';
+                wrapper.style.maxWidth = '500px'; // 1画面分の幅に戻す
+                playerContainer.style.width = '100%'; // プレイヤー側の幅をフルに
             }
             
             initGame();
@@ -423,6 +435,7 @@
         // --- プレイヤー操作 ---
 
         function handleClickPeg(event) {
+            // ボット単独モード実行中はプレイヤー操作を禁止
             if (isBotRunning && gameModeSelect.value !== 'versus') {
                 messageDisplay.textContent = "ボットが実行中のため、手動操作はできません。";
                 return;
@@ -436,13 +449,13 @@
                 if (sourcePegIndex === -1) {
                     const topDisk = playerPegElements[pegIndex].querySelector('.disk:last-child');
                     if (topDisk) {
-                        // ★対戦モードの開始トリガー★
+                        // ★対戦モードの開始トリガー（ここでボットの動きをセット）★
                         if (!isTimerRunning) { 
                             startTimer(); 
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
                                 // 1. ボットの移動手順を計算してキューに格納
-                                moveQueue = []; // 念のためキューをクリア
+                                moveQueue = []; // キューをクリア
                                 solveHanoi(disksCount, 0, 1, 2); 
                                 // 2. ボットの動きをインターバルで開始
                                 const speedMs = parseInt(botSpeedSelect.value, 10);
@@ -471,6 +484,7 @@
         }
         
         function handleKeyPress(event) {
+            // ... (省略: キー操作ロジックはhandleClickPegと同様にボット起動を含む) ...
             if (isBotRunning && gameModeSelect.value !== 'versus') return;
             if (playerWon || botWon) return;
 
@@ -553,7 +567,7 @@
             sourcePegIndex = -1;
         }
 
-        // --- タイマーとベストタイム (省略: 修正なし) ---
+        // --- タイマーとベストタイム (省略) ---
         
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -634,7 +648,6 @@
 
             if(playerWon || botWon || isBotRunning) {
                  initGame();
-                 // 再度モードチェックして対戦モードならメッセージ更新
                  if (gameMode === 'versus') {
                     messageDisplay.textContent = `⚔️ 対戦準備完了！最初の移動でタイマーとボットがスタートします。`;
                  }
@@ -748,7 +761,7 @@
         }
 
 
-        // --- 勝利判定とレート更新 ---
+        // --- 勝利判定とレート更新 (省略) ---
         
         /**
          * プレイヤーの勝利判定 (ボット単独モードの終了処理も兼ねる)
@@ -854,7 +867,7 @@
             rateDisplayElement.textContent = playerRate;
         }
 
-        // --- ベストタイム一覧表示 (省略: 修正なし) ---
+        // --- ベストタイム一覧表示 (省略) ---
         function displayBestTimes() {
             const container = document.getElementById('best-time-list-container');
             const records = [];
