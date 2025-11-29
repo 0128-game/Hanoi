@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ハノイの塔 - ベストタイム一覧対応</title>
+    <title>ハノイの塔 - ⚔️ ボット対戦モード</title>
     <style>
-        /* CSS */
+        /* 基本スタイル */
         body {
             font-family: sans-serif;
             display: flex;
@@ -19,15 +19,13 @@
             margin-bottom: 10px;
         }
 
-        #game-container {
+        /* 盤面コンテナのスタイル（左右分割） */
+        .game-container {
             display: flex;
             justify-content: space-around;
             align-items: flex-end;
-            width: 90%;
-            max-width: 800px;
+            width: 100%;
             height: 300px; 
-            margin: 20px 0;
-            padding-top: 50px;
             border-bottom: 5px solid #333;
         }
 
@@ -38,7 +36,15 @@
             display: flex;
             flex-direction: column-reverse;
             align-items: center;
+        }
+
+        .peg.player-peg {
+            /* プレイヤー盤面でのカーソルは有効 */
             cursor: pointer; 
+        }
+        .peg.bot-peg {
+            /* ボット盤面でのカーソルは無効 */
+            cursor: default; 
         }
 
         .peg-base {
@@ -77,12 +83,6 @@
             color: #007bff;
         }
 
-        .guide {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-
         button, select {
             padding: 10px 15px;
             font-size: 16px;
@@ -95,14 +95,7 @@
             display: inline-block;
         }
 
-        button:hover {
-            background-color: #0056b3;
-        }
-        select {
-            background-color: #0099ff;
-        }
-
-        /* ★追加CSS: ベストタイム一覧表示用★ */
+        /* ベストタイムテーブルのスタイル */
         .best-time-table {
             width: 100%;
             border-collapse: collapse;
@@ -118,25 +111,42 @@
             background-color: #f2f2f2;
             color: #333;
         }
-        .best-time-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        /* ★追加CSS終わり★ */
     </style>
 </head>
 <body>
 
-    <h1>ハノイの塔</h1>
+    <h1>ハノイの塔 ⚔️ 対戦モード</h1>
 
-    <div id="game-container">
-        <div id="peg1" class="peg">
-            <div class="peg-base"></div>
+    <div id="game-containers-wrapper" style="display: flex; justify-content: space-around; width: 90%; max-width: 1000px; margin: 20px 0;">
+        
+        <div id="player-container" style="width: 48%; border: 2px solid #007bff; border-radius: 8px; padding-top: 20px;">
+            <h3 style="text-align: center; color: #007bff;">🧑 プレイヤーの盤面</h3>
+            <div id="game-container-player" class="game-container">
+                <div id="peg1" class="peg player-peg">
+                    <div class="peg-base"></div>
+                </div>
+                <div id="peg2" class="peg player-peg">
+                    <div class="peg-base"></div>
+                </div>
+                <div id="peg3" class="peg player-peg">
+                    <div class="peg-base"></div>
+                </div>
+            </div>
         </div>
-        <div id="peg2" class="peg">
-            <div class="peg-base"></div>
-        </div>
-        <div id="peg3" class="peg">
-            <div class="peg-base"></div>
+
+        <div id="bot-container" style="width: 48%; border: 2px solid #dc3545; border-radius: 8px; padding-top: 20px;">
+            <h3 style="text-align: center; color: #dc3545;">🤖 ボットの盤面</h3>
+            <div id="game-container-bot" class="game-container">
+                <div id="bot-peg1" class="peg bot-peg">
+                    <div class="peg-base"></div>
+                </div>
+                <div id="bot-peg2" class="peg bot-peg">
+                    <div class="peg-base"></div>
+                </div>
+                <div id="bot-peg3" class="peg bot-peg">
+                    <div class="peg-base"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -144,7 +154,14 @@
         <label for="disks">円盤の数 (3-64):</label> 
         <input type="number" id="disks" value="3" min="3" max="64">
         <button onclick="initGame()">ゲーム開始/リセット</button>
-        <button onclick="startBot()">ボット実行 (最小手数)</button>
+        <button onclick="startBot()">ボット実行/対戦開始</button>
+        
+        <label for="game-mode" style="color: #6a0dad; font-weight: bold; margin-left: 10px;">モード選択:</label>
+        <select id="game-mode" onchange="updateModeDisplay()">
+            <option value="manual" selected>ボットなし (手動)</option>
+            <option value="bot_only">ボット (自動クリア)</option>
+            <option value="versus">ボットと対戦</option>
+        </select>
         
         <label for="bot-speed" style="color: #007bff; font-weight: bold; margin-left: 10px;">ボット速度:</label>
         <select id="bot-speed">
@@ -155,40 +172,53 @@
             <option value="0">超高速シミュレーション</option> 
         </select>
         
-        <p id="message">始点の杭 (1, 2, 3) を押してください。</p>
+        <p id="rate-display">現在のレート: <span id="player-rate">1000</span></p>
+        <p id="message">モードを選択し、円盤の数と速度を設定してゲーム開始/リセットを押してください。</p>
         <p>手数: <span id="moves">0</span> / 最小手数: <span id="min-moves"></span></p>
         <p>経過時間: <span id="time-elapsed">00:00.00</span></p>
         <p>ベストタイム (現行円盤数): <span id="best-time">---</span></p>
-        <p class="guide">**操作方法**: 始点となる杭をクリックまたはキー (1, 2, 3) を押し、終点となる杭をクリックまたはキーを押します。キャンセルは Esc キー。</p>
     </div>
 
     <button onclick="displayBestTimes()" style="margin-top: 20px;">全ベストタイムを表示/更新</button>
     <div id="best-time-list-container" style="margin-top: 15px; width: 90%; max-width: 500px;">
         </div>
+
     <script>
         // JS
-
-        // グローバル変数
+        
+        // --- グローバル変数と定数 ---
         let disksCount = 3;
         let selectedDisk = null;
         let sourcePegIndex = -1;
         let moves = 0;
         let minMoves = 0;
-
-        // タイマー関連
         let timerInterval = null;
         let startTime = 0;
         let isTimerRunning = false;
-
-        // ボット関連
         let isBotRunning = false;
         let moveQueue = [];
+        let playerWon = false;
+        let botWon = false;
+
+        // レート関連
+        const RATE_K = 32;
+        let playerRate = parseInt(localStorage.getItem('hanoi_player_rate') || '1000', 10);
+        
+        // 盤面状態
+        let playerPegsState = [[], [], []]; 
+        let botPegsState = [[], [], []]; 
+        let botInterval = null;
 
         // DOM要素
-        const pegElements = [
+        const playerPegElements = [
             document.getElementById('peg1'),
             document.getElementById('peg2'),
             document.getElementById('peg3')
+        ];
+        const botPegElements = [
+            document.getElementById('bot-peg1'),
+            document.getElementById('bot-peg2'),
+            document.getElementById('bot-peg3')
         ];
         const movesDisplay = document.getElementById('moves');
         const minMovesDisplay = document.getElementById('min-moves');
@@ -197,41 +227,187 @@
         const timeDisplay = document.getElementById('time-elapsed');
         const bestTimeDisplay = document.getElementById('best-time');
         const botSpeedSelect = document.getElementById('bot-speed'); 
+        const gameModeSelect = document.getElementById('game-mode');
+        const rateDisplayElement = document.getElementById('player-rate');
 
-        // 杭の固定パラメータ (CSSと同期)
+        // 物理定数
         const PEG_HEIGHT = 300;
         const DISK_MARGIN = 2;
         const MIN_DISK_HEIGHT = 1;
         const MAX_PRACTICAL_DISKS = 64; 
 
-        // --- イベントリスナーの追加 ---
+        // --- イベントと初期化 ---
 
         window.onload = () => {
             disksInput.setAttribute('max', MAX_PRACTICAL_DISKS);
+            rateDisplayElement.textContent = playerRate;
             initGame();
             document.addEventListener('keydown', handleKeyPress);
-            pegElements.forEach(peg => {
+            playerPegElements.forEach(peg => {
                 peg.addEventListener('click', handleClickPeg);
             });
-            // ページロード時にベストタイム一覧を自動表示しない（ボタンクリックを待つ）
+            updateModeDisplay(); // 初期モード設定
         };
+        
+        /**
+         * モード選択に応じてUIを更新する
+         */
+        function updateModeDisplay() {
+            const mode = gameModeSelect.value;
+            const startButton = document.querySelector('#controls button[onclick="startBot()"]');
+            const rateRow = document.getElementById('rate-display');
+
+            if (mode === 'versus') {
+                botSpeedSelect.style.display = 'none';
+                rateRow.style.display = 'block';
+                startButton.textContent = 'ボットと対戦開始';
+                document.getElementById('bot-container').style.display = 'block';
+            } else {
+                botSpeedSelect.style.display = 'inline-block';
+                rateRow.style.display = 'none';
+                startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
+                document.getElementById('bot-container').style.display = mode === 'bot_only' ? 'none' : 'block';
+            }
+            initGame();
+        }
+
+        /**
+        * ゲームの初期化 (左右盤面対応)
+        */
+        function initGame() {
+            if(botInterval) clearInterval(botInterval); // ボットの動きを停止
+
+            let newDisksCount = parseInt(disksInput.value);
+            // ... (円盤数チェックと設定) ...
+            if (isNaN(newDisksCount) || newDisksCount < 3 || newDisksCount > MAX_PRACTICAL_DISKS) {
+                alert(`円盤の数は3から${MAX_PRACTICAL_DISKS}の間で設定してください。3枚に戻します。`);
+                disksCount = 3;
+                disksInput.value = 3;
+            } else {
+                disksCount = newDisksCount;
+            }
+
+            minMoves = Math.pow(2, disksCount) - 1;
+            let minMovesStr = minMoves.toString();
+            if (disksCount > 25) { 
+                minMovesStr = `2^${disksCount} - 1`;
+            } else if (minMovesStr.length > 15) {
+                minMovesStr = minMoves.toExponential(2);
+            }
+
+            resetSelection();
+            moves = 0;
+            movesDisplay.textContent = moves;
+            minMovesDisplay.textContent = minMovesStr;
+
+            playerWon = false;
+            botWon = false;
+            isBotRunning = false; 
+            moveQueue = []; 
+
+            resetTimerDisplay();
+            isTimerRunning = false;
+            
+            const currentBestTimeMs = getBestTime(disksCount);
+            bestTimeDisplay.textContent = formatTime(currentBestTimeMs);
+
+            // 盤面のリセット (両方)
+            playerPegElements.forEach(peg => {
+                peg.querySelectorAll('.disk').forEach(disk => disk.remove());
+            });
+            botPegElements.forEach(peg => {
+                peg.querySelectorAll('.disk').forEach(disk => disk.remove());
+            });
+            
+            playerPegsState = [[], [], []]; 
+            botPegsState = [[], [], []]; 
+
+            // --- 動的なサイズ計算と円盤の配置 ---
+            const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
+            const availableHeight = PEG_HEIGHT - totalMarginHeight;
+            const diskHeight = Math.floor(availableHeight / disksCount);
+
+            const MIN_WIDTH = 50;
+            const MAX_WIDTH = 180;
+            const widthRange = MAX_WIDTH - MIN_WIDTH;
+
+            for (let i = disksCount; i >= 1; i--) {
+                const diskWidth = MIN_WIDTH + ((i - 1) / (disksCount - 1 || 1)) * widthRange;
+                const hue = (i / disksCount) * 360;
+
+                // プレイヤー側の円盤を作成・配置
+                const pDisk = document.createElement('div');
+                pDisk.classList.add('disk', 'player-disk');
+                pDisk.dataset.size = i;
+                pDisk.style.width = `${diskWidth}px`;
+                pDisk.style.height = `${diskHeight}px`;
+                pDisk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+                playerPegElements[0].appendChild(pDisk);
+                playerPegsState[0].push(i);
+
+                // ボット側の円盤を作成・配置
+                const bDisk = document.createElement('div');
+                bDisk.classList.add('disk', 'bot-disk');
+                bDisk.dataset.size = i;
+                bDisk.style.width = `${diskWidth}px`;
+                bDisk.style.height = `${diskHeight}px`;
+                bDisk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+                botPegElements[0].appendChild(bDisk);
+                botPegsState[0].push(i);
+            }
+
+            // 対戦モードのボット速度設定
+            const gameMode = gameModeSelect.value;
+            if (gameMode === 'versus') {
+                const maxSpeed = 500;
+                const minSpeed = 10;
+                const rateMin = 500;
+                const rateMax = 1500;
+                
+                // プレイヤーレートを 500から1500の間に正規化
+                let normalizedRate = Math.min(rateMax, Math.max(rateMin, playerRate));
+                // プレイヤーレートが高いほどボット速度を速くする
+                const rateRatio = (normalizedRate - rateMin) / (rateMax - rateMin); 
+                
+                // 500msから10msに近づくように調整
+                let botSpeed = maxSpeed - rateRatio * (maxSpeed - minSpeed);
+                botSpeed = Math.round(Math.max(minSpeed, botSpeed));
+
+                // ボットの実行速度を設定 (select要素の値として保持)
+                botSpeedSelect.value = botSpeed.toString();
+                
+                messageDisplay.textContent = `⚔️ 対戦モード: ボット速度 ${botSpeed}ms で競います！現在のレート ${playerRate}`;
+            } else {
+                messageDisplay.textContent = "モードを選択し、ゲーム開始/リセットを押してください。";
+            }
+        }
+
+        // --- プレイヤー操作 ---
 
         function handleClickPeg(event) {
-            if (isBotRunning) {
+            if (isBotRunning && gameModeSelect.value !== 'versus') {
                 messageDisplay.textContent = "ボットが実行中のため、手動操作はできません。";
                 return;
             }
-            if (messageDisplay.textContent.includes("おめでとう")) {
-                return;
-            }
+            if (playerWon || botWon) return;
+
             const pegId = event.currentTarget.id;
             const pegIndex = parseInt(pegId.replace('peg', '')) - 1;
 
             if (pegIndex >= 0 && pegIndex <= 2) {
                 if (sourcePegIndex === -1) {
-                    const topDisk = pegElements[pegIndex].querySelector('.disk:last-child');
+                    const topDisk = playerPegElements[pegIndex].querySelector('.disk:last-child');
                     if (topDisk) {
-                        if (!isTimerRunning) { startTimer(); isTimerRunning = true; }
+                        // ★対戦モードの開始トリガー★
+                        if (!isTimerRunning) { 
+                            startTimer(); 
+                            isTimerRunning = true; 
+                            if (gameModeSelect.value === 'versus') {
+                                // ボットの動きも開始
+                                const speedMs = parseInt(botSpeedSelect.value, 10);
+                                if(speedMs > 0) startBotMoves(speedMs);
+                            }
+                        }
                         sourcePegIndex = pegIndex;
                         selectedDisk = topDisk;
                         selectedDisk.classList.add('selected');
@@ -243,7 +419,7 @@
                     const targetPegIndex = pegIndex;
                     if (sourcePegIndex === targetPegIndex) {
                         resetSelection();
-                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。始点の杭 (1, 2, 3) をクリックまたは押してください。";
+                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。";
                         return;
                     }
                     const isSuccess = attemptMove(sourcePegIndex, targetPegIndex);
@@ -252,23 +428,27 @@
                 }
             }
         }
-
+        
         function handleKeyPress(event) {
-            if (isBotRunning) {
-                messageDisplay.textContent = "ボットが実行中のため、手動操作はできません。";
-                return;
-            }
-            if (messageDisplay.textContent.includes("おめでとう")) {
-                return;
-            }
+            // ... (キーボード操作ロジックは handleClickPeg と同様に対戦モードの開始処理を組み込む) ...
+            if (isBotRunning && gameModeSelect.value !== 'versus') return;
+            if (playerWon || botWon) return;
+
             const key = event.key;
             const pegIndex = parseInt(key) - 1;
 
             if (key === '1' || key === '2' || key === '3') {
                 if (sourcePegIndex === -1) {
-                    const topDisk = pegElements[pegIndex].querySelector('.disk:last-child');
+                    const topDisk = playerPegElements[pegIndex].querySelector('.disk:last-child');
                     if (topDisk) {
-                        if (!isTimerRunning) { startTimer(); isTimerRunning = true; }
+                        if (!isTimerRunning) { 
+                            startTimer(); 
+                            isTimerRunning = true; 
+                            if (gameModeSelect.value === 'versus') {
+                                const speedMs = parseInt(botSpeedSelect.value, 10);
+                                if(speedMs > 0) startBotMoves(speedMs);
+                            }
+                        }
                         sourcePegIndex = pegIndex;
                         selectedDisk = topDisk;
                         selectedDisk.classList.add('selected');
@@ -280,7 +460,7 @@
                     const targetPegIndex = pegIndex;
                     if (sourcePegIndex === targetPegIndex) {
                         resetSelection();
-                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。始点の杭 (1, 2, 3) をクリックまたは押してください。";
+                        messageDisplay.textContent = "始点と同じ杭を選びました。選択を解除します。";
                         return;
                     }
                     const isSuccess = attemptMove(sourcePegIndex, targetPegIndex);
@@ -293,8 +473,11 @@
             }
         }
 
+        /**
+         * プレイヤーによる円盤の移動実行
+         */
         function attemptMove(sourceIndex, targetIndex) {
-            const targetPeg = pegElements[targetIndex];
+            const targetPeg = playerPegElements[targetIndex];
             const topDiskOnTarget = targetPeg.querySelector('.disk:last-child');
             const selectedSize = parseInt(selectedDisk.dataset.size);
             const topDiskSize = topDiskOnTarget ? parseInt(topDiskOnTarget.dataset.size) : Infinity;
@@ -302,9 +485,18 @@
             if (selectedSize < topDiskSize) {
                 selectedDisk.parentNode.removeChild(selectedDisk);
                 targetPeg.appendChild(selectedDisk);
+                
+                // 状態配列を更新
+                playerPegsState[sourceIndex].pop();
+                playerPegsState[targetIndex].push(selectedSize);
+
                 moves++;
                 movesDisplay.textContent = moves;
-                messageDisplay.textContent = `杭 ${sourceIndex + 1} から杭 ${targetIndex + 1} へ移動しました。次の始点 (1, 2, 3) をクリックまたは押してください。`;
+                
+                // 対戦モードでない場合は移動メッセージを表示
+                if (gameModeSelect.value !== 'versus') {
+                    messageDisplay.textContent = `杭 ${sourceIndex + 1} から杭 ${targetIndex + 1} へ移動しました。`;
+                }
                 return true;
             } else {
                 messageDisplay.textContent = "ルール違反です！小さい円盤の上に大きな円盤は置けません。";
@@ -320,12 +512,21 @@
             sourcePegIndex = -1;
         }
 
+        // --- タイマーとベストタイム ---
+        
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 10); 
         }
 
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+        
         function updateTimer() {
             const elapsed = Date.now() - startTime;
             const totalSeconds = Math.floor(elapsed / 1000);
@@ -339,18 +540,11 @@
             timeDisplay.textContent = formattedTime;
         }
 
-        function stopTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        }
-
         function resetTimerDisplay() {
             stopTimer();
             timeDisplay.textContent = "00:00.00";
         }
-        
+
         function getBestTime(disks) {
             const key = `hanoi_best_time_${disks}`;
             const storedTime = localStorage.getItem(key);
@@ -374,11 +568,221 @@
                    `${String(milliseconds).padStart(2, '0')}`;
         }
         
-        // --- ★ベストタイム一覧表示関連の関数★ ---
+        // --- ボットロジック ---
+
+        function solveHanoi(n, source, auxiliary, destination) {
+            if (n === 1) {
+                moveQueue.push({ from: source, to: destination });
+                return;
+            }
+            solveHanoi(n - 1, source, destination, auxiliary);
+            moveQueue.push({ from: source, to: destination });
+            solveHanoi(n - 1, auxiliary, source, destination);
+        }
+
+        /**
+         * ボットによるゲームの自動開始と実行 (モード判定)
+         */
+        function startBot() {
+            const gameMode = gameModeSelect.value;
+            
+            if (gameMode === 'manual') {
+                messageDisplay.textContent = "ボットなしモードです。手動で操作してください。";
+                return;
+            }
+
+            if(playerWon || botWon) {
+                 initGame();
+            }
+
+            // 対戦モードの場合は、initGame()が呼ばれた後、最初のプレイヤー操作で開始
+            if (gameMode === 'versus') {
+                messageDisplay.textContent = `⚔️ 対戦準備完了！最初の移動でタイマーとボットがスタートします。`;
+                return;
+            }
+            
+            // ボット単独モードの場合
+            initGame();
+            isBotRunning = true;
+            moveQueue = [];
+            solveHanoi(disksCount, 0, 1, 2);
+            
+            const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
+            const isSimulationMode = selectedSpeedMs === 0;
+
+            if (isSimulationMode) {
+                // 超高速シミュレーションモード
+                startTimer();
+                moves = moveQueue.length; 
+                movesDisplay.textContent = moves;
+                moveQueue = []; 
+                checkWin(true); // 強制勝利判定
+                isBotRunning = false;
+                return;
+            }
+            
+            // アニメーションありのボット実行
+            startTimer();
+            startBotMoves(selectedSpeedMs);
+            messageDisplay.textContent = "🤖 ボットが最小手数での解決を開始しました。";
+        }
+
+        /**
+         * ボットの移動実行インターバル開始
+         */
+        function startBotMoves(speedMs) {
+            if (botInterval) clearInterval(botInterval);
+
+            const animationDelay = 150; 
+            const shouldSkipAnimation = speedMs <= 150; 
+            isBotRunning = true; // ボットが動いている間は true
+            
+            botInterval = setInterval(() => {
+                if (moveQueue.length > 0 && !botWon && !playerWon) {
+                    const nextMove = moveQueue.shift();
+                    
+                    const sourcePeg = botPegElements[nextMove.from];
+                    const targetPeg = botPegElements[nextMove.to];
+                    
+                    const diskElement = sourcePeg.querySelector('.disk:last-child');
+                    
+                    if (diskElement) {
+                        // 状態配列を更新
+                        const diskSize = botPegsState[nextMove.from].pop();
+                        botPegsState[nextMove.to].push(diskSize);
+                        
+                        // DOM操作
+                        if (shouldSkipAnimation) {
+                            diskElement.parentNode.removeChild(diskElement);
+                            targetPeg.appendChild(diskElement);
+                        } else {
+                            // アニメーションを伴う場合は、setTimeoutで遅延させる
+                            diskElement.classList.add('selected');
+                            setTimeout(() => {
+                                diskElement.parentNode.removeChild(diskElement);
+                                targetPeg.appendChild(diskElement);
+                                diskElement.classList.remove('selected');
+                            }, animationDelay);
+                        }
+
+                        // ボットの勝利判定は、moveQueueが空になったときに行う
+                        if (moveQueue.length === 0) {
+                            botWinCheck(); 
+                            clearInterval(botInterval);
+                            isBotRunning = false;
+                        }
+                    }
+
+                } else {
+                    clearInterval(botInterval);
+                    isBotRunning = false;
+                }
+            }, speedMs);
+        }
+
+
+        // --- 勝利判定とレート更新 ---
         
         /**
-         * ローカルストレージからすべてのベストタイムを読み取り、表として表示する
+         * プレイヤーの勝利判定
          */
+        function checkWin(isSimulation = false) {
+            if (playerWon || botWon) return; 
+
+            const isPlayerWin = (playerPegsState[1].length === disksCount) ||
+                                (playerPegsState[2].length === disksCount);
+
+            if (isPlayerWin) {
+                playerWon = true; 
+                stopTimer();
+                
+                const gameMode = gameModeSelect.value;
+                const finalTimeMs = Date.now() - startTime;
+
+                if (gameMode === 'versus') {
+                    // 対戦モード
+                    if (botInterval) clearInterval(botInterval); // ボット停止
+                    updateRate(true); // プレイヤー勝利でレートアップ
+                    messageDisplay.textContent = `🏆 プレイヤー勝利！レートが更新されました (${rateDisplayElement.textContent})。`;
+                } else {
+                    // ボットなし/ボット単独モード
+                    let winMessage = `🎉 おめでとうございます！ ${disksCount}個の円盤を移動させました。`;
+                    // ... (手数メッセージ) ...
+
+                    const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
+                    const isBotTime = isBotRunning && selectedSpeedMs <= 150; 
+
+                    let bestTimeMessage = ` 🏆 タイム: ${formatTime(finalTimeMs)}`;
+
+                    if (!isBotTime) {
+                        const currentBestTimeMs = getBestTime(disksCount);
+                        if (currentBestTimeMs === null || finalTimeMs < currentBestTimeMs) {
+                            setBestTime(disksCount, finalTimeMs);
+                            bestTimeDisplay.textContent = formatTime(finalTimeMs);
+                            bestTimeMessage += " (✨ **NEW RECORD!**)";
+                        } else {
+                            bestTimeMessage += ` (ベスト: ${formatTime(currentBestTimeMs)})`;
+                        }
+                    } else {
+                        bestTimeMessage += ` (記録対象外: 高速ボット)`;
+                    }
+
+                    winMessage += bestTimeMessage;
+                    messageDisplay.textContent = winMessage;
+                }
+            }
+        }
+
+        /**
+         * ボットの勝利判定（ボットの移動完了時）
+         */
+        function botWinCheck() {
+            if (playerWon || botWon) return; 
+            
+            // ボットの最終状態を確認
+            const isBotWin = (botPegsState[1].length === disksCount) || (botPegsState[2].length === disksCount);
+
+            if (isBotWin) {
+                botWon = true; 
+                stopTimer();
+                
+                // プレイヤーがまだクリアしていない場合
+                if (!playerWon) {
+                    updateRate(false); // プレイヤー敗北でレートダウン
+                    messageDisplay.textContent = `🤖 ボット勝利！レートが更新されました (${rateDisplayElement.textContent})。`;
+                }
+            }
+        }
+
+        /**
+         * レートを更新し、ローカルストレージに保存する (ELOに基づいた簡易ロジック)
+         * @param {boolean} didPlayerWin - プレイヤーが勝ったかどうか
+         */
+        function updateRate(didPlayerWin) {
+            const K = RATE_K; 
+            
+            // プレイヤーの予想勝率を計算するために、ボットの仮想レートを設定
+            // 3枚: 800, 10枚: 1500, 64枚: 2000 (適当な難易度ベース)
+            const botBaseRate = 800; 
+            const diskFactor = Math.min(60, disksCount - 3) * 20; // 円盤数が多いほどボットは強い
+
+            // ボットの仮想レート R_Bot (円盤の難易度に基づき決定)
+            const botVirtualRate = botBaseRate + diskFactor; 
+
+            const expectedScore = 1 / (1 + Math.pow(10, (botVirtualRate - playerRate) / 400));
+            const actualScore = didPlayerWin ? 1 : 0;
+            
+            const rateChange = Math.round(K * (actualScore - expectedScore));
+            
+            const newRate = playerRate + rateChange;
+
+            playerRate = Math.max(100, newRate); 
+            localStorage.setItem('hanoi_player_rate', playerRate.toString());
+            rateDisplayElement.textContent = playerRate;
+        }
+
+        // --- ベストタイム一覧表示 ---
+        // ... (displayBestTimes と clearAllBestTimes 関数は前の回答のものをそのまま使用) ...
         function displayBestTimes() {
             const container = document.getElementById('best-time-list-container');
             const records = [];
@@ -446,9 +850,6 @@
             container.innerHTML = tableHTML;
         }
 
-        /**
-         * すべてのベストタイム記録をローカルストレージから削除する
-         */
         function clearAllBestTimes() {
             if (confirm("本当にすべてのベストタイム記録を削除してもよろしいですか？")) {
                 let keysToDelete = [];
@@ -464,219 +865,6 @@
                 initGame(); 
                 displayBestTimes(); 
                 alert("すべてのベストタイム記録が削除されました。");
-            }
-        }
-        
-        // --- ボット関連の関数 ---
-
-        function solveHanoi(n, source, auxiliary, destination) {
-            if (n === 1) {
-                moveQueue.push({ from: source, to: destination });
-                return;
-            }
-            solveHanoi(n - 1, source, destination, auxiliary);
-            moveQueue.push({ from: source, to: destination });
-            solveHanoi(n - 1, auxiliary, source, destination);
-        }
-
-        function startBot() {
-            if (isBotRunning) {
-                messageDisplay.textContent = "ボットはすでに実行中です。リセットしてください。";
-                return;
-            }
-
-            initGame(); 
-            isBotRunning = true;
-            
-            const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
-            const isSimulationMode = selectedSpeedMs === 0; 
-            
-            const shouldSkipAnimation = selectedSpeedMs <= 150; 
-            const animationDelay = 150; 
-            
-            messageDisplay.textContent = isSimulationMode 
-                ? "⚡ 超高速シミュレーションを開始します..."
-                : "🤖 ボットが最小手数での解決を開始しました。";
-
-            solveHanoi(disksCount, 0, 1, 2); 
-
-            if (isSimulationMode) {
-                startTimer();
-                isTimerRunning = true;
-
-                moves = moveQueue.length; 
-                movesDisplay.textContent = moves;
-
-                moveQueue = []; 
-                checkWin(true); 
-
-                isBotRunning = false;
-                return;
-            }
-
-            startTimer();
-            isTimerRunning = true;
-
-            const botInterval = setInterval(() => {
-                if (moveQueue.length > 0) {
-                    const nextMove = moveQueue.shift();
-                    
-                    const sourcePeg = pegElements[nextMove.from];
-                    const targetPeg = pegElements[nextMove.to];
-                    
-                    const diskToMove = sourcePeg.querySelector('.disk:last-child');
-                    
-                    if (diskToMove) {
-                        
-                        if (shouldSkipAnimation) {
-                            diskToMove.parentNode.removeChild(diskToMove);
-                            targetPeg.appendChild(diskToMove);
-                            
-                            moves++;
-                            movesDisplay.textContent = moves;
-                            checkWin(); 
-
-                        } else {
-                            selectedDisk = diskToMove;
-                            selectedDisk.classList.add('selected');
-                            
-                            setTimeout(() => {
-                                selectedDisk.parentNode.removeChild(selectedDisk);
-                                targetPeg.appendChild(selectedDisk);
-                                
-                                moves++;
-                                movesDisplay.textContent = moves;
-                                
-                                selectedDisk.classList.remove('selected');
-                                selectedDisk = null;
-
-                                checkWin(); 
-                            }, animationDelay);
-                        }
-                    }
-
-                } else {
-                    clearInterval(botInterval);
-                    isBotRunning = false;
-                }
-            }, selectedSpeedMs);
-        }
-
-
-        function initGame() {
-            let newDisksCount = parseInt(disksInput.value);
-
-            if (isNaN(newDisksCount) || newDisksCount < 3 || newDisksCount > MAX_PRACTICAL_DISKS) {
-                alert(`円盤の数は3から${MAX_PRACTICAL_DISKS}の間で設定してください。3枚に戻します。`);
-                disksCount = 3;
-                disksInput.value = 3;
-            } else {
-                disksCount = newDisksCount;
-            }
-
-            minMoves = Math.pow(2, disksCount) - 1;
-            let minMovesStr = minMoves.toString();
-            
-            if (disksCount > 25) { 
-                minMovesStr = `2^${disksCount} - 1`;
-            } else if (minMovesStr.length > 15) {
-                minMovesStr = minMoves.toExponential(2);
-            }
-
-            resetSelection();
-            moves = 0;
-            movesDisplay.textContent = moves;
-            minMovesDisplay.textContent = minMovesStr;
-            messageDisplay.textContent = "始点の杭 (1, 2, 3) を押してください。";
-
-            isBotRunning = false; 
-            moveQueue = []; 
-
-            resetTimerDisplay();
-            isTimerRunning = false;
-
-            const currentBestTimeMs = getBestTime(disksCount);
-            bestTimeDisplay.textContent = formatTime(currentBestTimeMs);
-
-            pegElements.forEach(peg => {
-                const disks = peg.querySelectorAll('.disk');
-                disks.forEach(disk => disk.remove());
-            });
-
-            const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
-            const availableHeight = PEG_HEIGHT - totalMarginHeight;
-            const diskHeight = Math.floor(availableHeight / disksCount);
-
-            if (diskHeight < MIN_DISK_HEIGHT && disksCount > 15) {
-                // 15枚以上の警告は残しておく
-            } else if (diskHeight < MIN_DISK_HEIGHT) {
-                alert(`円盤の数が多すぎます (${disksCount}枚)。円盤の高さが${MIN_DISK_HEIGHT}px未満になるため、数を減らしてください。`);
-                disksInput.value = 3;
-                initGame();
-                return;
-            }
-
-            const MIN_WIDTH = 50;
-            const MAX_WIDTH = 180;
-            const widthRange = MAX_WIDTH - MIN_WIDTH;
-
-            for (let i = disksCount; i >= 1; i--) {
-                const disk = document.createElement('div');
-                disk.classList.add('disk');
-                disk.dataset.size = i;
-
-                const divisor = disksCount - 1 || 1;
-                const widthFactor = (i - 1) / divisor;
-                const diskWidth = MIN_WIDTH + widthFactor * widthRange;
-
-                disk.style.width = `${diskWidth}px`;
-                disk.style.height = `${diskHeight}px`;
-
-                const hue = (i / disksCount) * 360;
-                disk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
-
-                pegElements[0].appendChild(disk);
-            }
-        }
-
-        function checkWin(isSimulation = false) {
-            let winCondition;
-            
-            if (isSimulation) {
-                winCondition = true;
-            } else {
-                winCondition = (pegElements[1].querySelectorAll('.disk').length === disksCount) ||
-                                 (pegElements[2].querySelectorAll('.disk').length === disksCount);
-            }
-
-            if (winCondition) {
-                stopTimer();
-                isTimerRunning = false;
-
-                const finalTimeMs = Date.now() - startTime;
-                const finalTimeFormatted = formatTime(finalTimeMs);
-                
-                let winMessage = `🎉 おめでとうございます！ ${disksCount}個の円盤を移動させました。`;
-                if (moves === minMoves) {
-                    winMessage += ` 最小手数 (${minMovesDisplay.textContent}手) でクリアです！`;
-                } else {
-                    winMessage += ` 手数: ${moves}回 (最小手数: ${minMovesDisplay.textContent}回)`;
-                }
-
-                let bestTimeMessage = ` 🏆 タイム: ${finalTimeFormatted}`;
-
-                const currentBestTimeMs = getBestTime(disksCount);
-                
-                if (currentBestTimeMs === null || finalTimeMs < currentBestTimeMs) {
-                    setBestTime(disksCount, finalTimeMs);
-                    bestTimeDisplay.textContent = finalTimeFormatted;
-                    bestTimeMessage += " (✨ **NEW RECORD!**)";
-                } else {
-                    bestTimeMessage += ` (ベスト: ${formatTime(currentBestTimeMs)})`;
-                }
-
-                winMessage += bestTimeMessage;
-                messageDisplay.textContent = winMessage;
             }
         }
     </script>
