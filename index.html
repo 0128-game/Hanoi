@@ -72,11 +72,10 @@
 
         #controls {
             text-align: center;
-            /* Flexアイテムを中央に揃えるための基本設定 */
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px; /* 要素間の隙間 */
+            gap: 10px;
             width: 100%;
             max-width: 800px;
             margin-top: 20px;
@@ -84,7 +83,6 @@
         
         /* P要素（メッセージやステータス表示）は横いっぱいに使う */
         #controls p, #controls label {
-            /* 全てのラベルとP要素を中央揃え、幅100%に */
             width: 100%;
             margin-bottom: 5px;
             text-align: center;
@@ -96,9 +94,9 @@
             font-size: 16px;
             cursor: pointer;
             border-radius: 5px;
-            margin: 0 5px 10px 5px; /* 下にマージン追加 */
+            margin: 0 5px 10px 5px;
             box-sizing: border-box;
-            display: inline-block; /* ドロップダウンリストが崩れないように */
+            display: inline-block;
         }
         
         button {
@@ -112,11 +110,18 @@
             background-color: #0056b3;
         }
 
-        /* セレクトボックスのスタイルを修正 */
+        /* ドロップダウンリストのCSS修正 */
         select {
             border: 1px solid #ccc;
             background-color: white;
-            padding: 7px 10px; /* ボタンと高さを揃えるため微調整 */
+            padding: 7px 10px;
+            appearance: none; /* OS標準のスタイルを無効化して統一感を出す */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="%23333"><polygon points="0,0 10,0 5,10"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 25px;
         }
         
         /* 円盤数の入力欄の幅を調整 */
@@ -188,7 +193,7 @@
 
     <div id="controls">
         <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
-            <label for="disks">円盤の数 (3-64):</label> 
+            <label for="disks" style="width: auto;">円盤の数 (3-64):</label> 
             <input type="number" id="disks" value="3" min="3" max="64">
             <button onclick="initGame()">ゲーム開始/リセット</button>
             <button onclick="startBot()">ボット実行/対戦開始</button>
@@ -300,23 +305,23 @@
             const rateRow = document.getElementById('rate-display');
 
             if (mode === 'versus') {
-                botSpeedSelect.style.display = 'none';
+                botSpeedSelect.parentElement.style.display = 'none'; // 親要素ごと非表示
                 rateRow.style.display = 'block';
                 startButton.textContent = 'ボットと対戦開始';
                 
                 // 画面分割を適用
                 botContainer.style.display = 'block'; 
-                wrapper.style.maxWidth = '1000px'; // 2画面分の幅
-                playerContainer.style.width = '48%'; // プレイヤー側の幅を半分に
+                wrapper.style.maxWidth = '1000px'; 
+                playerContainer.style.width = '48%';
             } else {
-                botSpeedSelect.style.display = 'inline-block';
+                botSpeedSelect.parentElement.style.display = 'flex'; // 親要素ごと表示
                 rateRow.style.display = 'none';
                 startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
                 
                 // 画面分割を解除
                 botContainer.style.display = 'none'; 
-                wrapper.style.maxWidth = '500px'; // 1画面分の幅に戻す
-                playerContainer.style.width = '100%'; // プレイヤー側の幅をフルに
+                wrapper.style.maxWidth = '500px'; 
+                playerContainer.style.width = '100%';
             }
             
             initGame();
@@ -454,12 +459,18 @@
                             startTimer(); 
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
-                                // 1. ボットの移動手順を計算してキューに格納
+                                // 1. 【開始時チェック】ボットの移動手順を計算してキューに格納
                                 moveQueue = []; // キューをクリア
                                 solveHanoi(disksCount, 0, 1, 2); 
-                                // 2. ボットの動きをインターバルで開始
-                                const speedMs = parseInt(botSpeedSelect.value, 10);
-                                if(speedMs > 0) startBotMoves(speedMs);
+                                
+                                if (moveQueue.length > 0) { // キューに移動手順が入っているかチェック
+                                    // 2. ボットの動きをインターバルで開始
+                                    const speedMs = parseInt(botSpeedSelect.value, 10);
+                                    if(speedMs > 0) startBotMoves(speedMs);
+                                } else {
+                                    // 円盤数が0の時などにここに来るが、initGameで3以上に強制しているので基本なし
+                                    messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
+                                }
                             }
                         }
                         sourcePegIndex = pegIndex;
@@ -501,8 +512,13 @@
                             if (gameModeSelect.value === 'versus') {
                                 moveQueue = [];
                                 solveHanoi(disksCount, 0, 1, 2); 
-                                const speedMs = parseInt(botSpeedSelect.value, 10);
-                                if(speedMs > 0) startBotMoves(speedMs);
+                                
+                                if (moveQueue.length > 0) {
+                                    const speedMs = parseInt(botSpeedSelect.value, 10);
+                                    if(speedMs > 0) startBotMoves(speedMs);
+                                } else {
+                                     messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
+                                }
                             }
                         }
                         sourcePegIndex = pegIndex;
@@ -530,7 +546,7 @@
         }
 
         /**
-         * プレイヤーによる円盤の移動実行
+         * プレイヤーによる円盤の移動実行 (省略: 修正なし)
          */
         function attemptMove(sourceIndex, targetIndex) {
             const targetPeg = playerPegElements[targetIndex];
@@ -663,7 +679,7 @@
             initGame();
             isBotRunning = true;
             moveQueue = [];
-            solveHanoi(disksCount, 0, 1, 2); // プレイヤー盤面で動かすので、プレイヤー盤面をリセットした後にキューを埋める
+            solveHanoi(disksCount, 0, 1, 2); 
 
             const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
             const isSimulationMode = selectedSpeedMs === 0;
@@ -695,9 +711,7 @@
             const isBotOnly = gameMode === 'bot_only';
             
             // 盤面と状態の参照先を決定
-            // ボット単独ならプレイヤー盤面、対戦ならボット盤面
             const targetPegs = isBotOnly ? playerPegElements : botPegElements; 
-            // ボット単独ならプレイヤー状態、対戦ならボット状態
             const targetState = isBotOnly ? playerPegsState : botPegsState; 
 
             const animationDelay = 150; 
@@ -705,58 +719,70 @@
             isBotRunning = true; 
             
             botInterval = setInterval(() => {
-                // 対戦モードでプレイヤーが先にクリアした場合、ボットを停止
+                // 【実行時チェック 1】プレイヤーが先に勝った場合はボットを停止
                 if (playerWon && gameMode === 'versus') {
                     clearInterval(botInterval);
                     isBotRunning = false;
                     return;
                 }
                 
-                if (moveQueue.length > 0 && !botWon) {
-                    const nextMove = moveQueue.shift();
-                    
-                    const sourcePeg = targetPegs[nextMove.from];
-                    const targetPeg = targetPegs[nextMove.to];
-                    
-                    const diskElement = sourcePeg.querySelector('.disk:last-child');
-                    
-                    if (diskElement) {
-                        // 状態配列を更新
-                        const diskSize = targetState[nextMove.from].pop();
-                        targetState[nextMove.to].push(diskSize);
-                        
-                        // DOM操作
-                        if (shouldSkipAnimation) {
-                            diskElement.parentNode.removeChild(diskElement);
-                            targetPeg.appendChild(diskElement);
-                        } else {
-                            diskElement.classList.add('selected');
-                            setTimeout(() => {
-                                diskElement.parentNode.removeChild(diskElement);
-                                targetPeg.appendChild(diskElement);
-                                diskElement.classList.remove('selected');
-                            }, animationDelay);
-                        }
-
-                        // ボットの勝利判定
-                        if (moveQueue.length === 0) {
-                            if (isBotOnly) {
-                                // ボット単独モードの場合
-                                checkWin(true); // 強制勝利フラグ
-                            } else {
-                                // 対戦モードの場合
-                                botWinCheck(); 
-                            }
-                            
-                            clearInterval(botInterval);
-                            isBotRunning = false;
-                        }
-                    }
-
-                } else {
+                // 【実行時チェック 2】キューが空、またはボットが既に勝っている場合は停止
+                if (moveQueue.length === 0 || botWon) {
                     clearInterval(botInterval);
                     isBotRunning = false;
+                    if (gameMode === 'versus' && !botWon) {
+                       // 対戦モードでキューが空だがプレイヤーが勝っていない場合（ボットが勝てなかった）
+                       // 特にアクションは不要だが、インターバルは停止
+                    }
+                    return;
                 }
+                
+                // 次の移動を取得
+                const nextMove = moveQueue.shift();
+                
+                const sourcePeg = targetPegs[nextMove.from];
+                const targetPeg = targetPegs[nextMove.to];
+                
+                // 【実行時チェック 3】動かす円盤要素が存在するか確認
+                const diskElement = sourcePeg.querySelector('.disk:last-child');
+                
+                if (diskElement) {
+                    // 状態配列を更新
+                    const diskSize = targetState[nextMove.from].pop();
+                    targetState[nextMove.to].push(diskSize);
+                    
+                    // DOM操作
+                    if (shouldSkipAnimation) {
+                        diskElement.parentNode.removeChild(diskElement);
+                        targetPeg.appendChild(diskElement);
+                    } else {
+                        diskElement.classList.add('selected');
+                        setTimeout(() => {
+                            diskElement.parentNode.removeChild(diskElement);
+                            targetPeg.appendChild(diskElement);
+                            diskElement.classList.remove('selected');
+                        }, animationDelay);
+                    }
+
+                    // ボットの勝利判定
+                    if (moveQueue.length === 0) {
+                        if (isBotOnly) {
+                            checkWin(true); 
+                        } else {
+                            botWinCheck(); 
+                        }
+                        
+                        clearInterval(botInterval);
+                        isBotRunning = false;
+                    }
+                } else {
+                    // 【実行時チェック 4】円盤要素がない場合（何か問題が発生した可能性）
+                    console.error("Bot Error: Source peg is empty but move queue suggests a move.");
+                    clearInterval(botInterval);
+                    isBotRunning = false;
+                    messageDisplay.textContent = "🚨 ボット動作エラー：予期せぬ盤面状態のため停止しました。リセットしてください。";
+                }
+
             }, speedMs);
         }
 
