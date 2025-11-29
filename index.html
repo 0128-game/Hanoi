@@ -75,6 +75,46 @@
         #controls {
             text-align: center;
             margin-top: 20px;
+            /* Flexアイテムを中央に揃えるための基本設定 */
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px; /* 要素間の隙間 */
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        /* P要素（メッセージやステータス表示）は横いっぱいに使う */
+        #controls p, #controls label[for="disks"], #controls label[for="game-mode"], #controls label[for="bot-speed"] {
+            width: 100%;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
+        /* ボタンと選択要素のスタイルを復元 */
+        button, select, input[type="number"] {
+            padding: 8px 12px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 0 5px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input[type="number"], select {
+            border: 1px solid #ccc;
+            background-color: white;
         }
 
         #message {
@@ -105,9 +145,9 @@
 
     <h1>ハノイの塔 ⚔️ 対戦モード</h1>
 
-    <div id="game-containers-wrapper" style="display: flex; justify-content: space-around; width: 90%; max-width: 1000px; margin: 20px 0;">
+    <div id="game-containers-wrapper" style="display: flex; justify-content: space-around; width: 90%; max-width: 500px; margin: 20px 0;">
         
-        <div id="player-container" style="width: 48%; border: 2px solid #007bff; border-radius: 8px; padding-top: 20px;">
+        <div id="player-container" style="width: 100%; border: 2px solid #007bff; border-radius: 8px; padding-top: 20px;">
             <h3 style="text-align: center; color: #007bff;">🧑 プレイヤーの盤面</h3>
             <div id="game-container-player" class="game-container">
                 <div id="peg1" class="peg player-peg">
@@ -140,7 +180,7 @@
 
     <div id="controls">
         <label for="disks">円盤の数 (3-64):</label> 
-        <input type="number" id="disks" value="3" min="3" max="64">
+        <input type="number" id="disks" value="3" min="3" max="64" style="width: 60px;">
         <button onclick="initGame()">ゲーム開始/リセット</button>
         <button onclick="startBot()">ボット実行/対戦開始</button>
         
@@ -160,7 +200,7 @@
             <option value="0">超高速シミュレーション</option> 
         </select>
         
-        <p id="rate-display">現在のレート: <span id="player-rate">1000</span></p>
+        <p id="rate-display" style="display: none;">現在のレート: <span id="player-rate">1000</span></p>
         <p id="message">モードを選択し、円盤の数と速度を設定してゲーム開始/リセットを押してください。</p>
         <p>手数: <span id="moves">0</span> / 最小手数: <span id="min-moves"></span></p>
         <p>経過時間: <span id="time-elapsed">00:00.00</span></p>
@@ -217,6 +257,9 @@
         const botSpeedSelect = document.getElementById('bot-speed'); 
         const gameModeSelect = document.getElementById('game-mode');
         const rateDisplayElement = document.getElementById('player-rate');
+        const botContainer = document.getElementById('bot-container'); 
+        const wrapper = document.getElementById('game-containers-wrapper');
+        const playerContainer = document.getElementById('player-container');
 
         // 物理定数
         const PEG_HEIGHT = 300;
@@ -237,29 +280,30 @@
         };
         
         /**
-         * モード選択に応じてUIを更新する
+         * モード選択に応じてUIとレイアウトを更新する
          */
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
             const startButton = document.querySelector('#controls button[onclick="startBot()"]');
             const rateRow = document.getElementById('rate-display');
-            const botContainer = document.getElementById('bot-container'); 
-            const wrapper = document.getElementById('game-containers-wrapper');
-            const playerContainer = document.getElementById('player-container');
 
             if (mode === 'versus') {
                 botSpeedSelect.style.display = 'none';
                 rateRow.style.display = 'block';
                 startButton.textContent = 'ボットと対戦開始';
-                botContainer.style.display = 'block'; // 対戦時のみ表示
-                wrapper.style.maxWidth = '1000px'; // 2画面幅
+                
+                // 画面分割を適用
+                botContainer.style.display = 'block'; 
+                wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%';
             } else {
                 botSpeedSelect.style.display = 'inline-block';
                 rateRow.style.display = 'none';
                 startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
-                botContainer.style.display = 'none'; // 対戦時以外は非表示
-                wrapper.style.maxWidth = '500px'; // 1画面幅
+                
+                // 画面分割を解除
+                botContainer.style.display = 'none'; 
+                wrapper.style.maxWidth = '500px'; 
                 playerContainer.style.width = '100%';
             }
             
@@ -267,7 +311,7 @@
         }
 
         /**
-        * ゲームの初期化 (左右盤面対応)
+        * ゲームの初期化 (盤面リセットと円盤配置)
         */
         function initGame() {
             if(botInterval) clearInterval(botInterval); 
@@ -510,7 +554,7 @@
             sourcePegIndex = -1;
         }
 
-        // --- タイマーとベストタイム ---
+        // --- タイマーとベストタイム (省略: 修正なし) ---
         
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -802,9 +846,8 @@
             rateDisplayElement.textContent = playerRate;
         }
 
-        // --- ベストタイム一覧表示 ---
+        // --- ベストタイム一覧表示 (省略: 修正なし) ---
         function displayBestTimes() {
-            // ... (既存の displayBestTimes 関数) ...
             const container = document.getElementById('best-time-list-container');
             const records = [];
 
