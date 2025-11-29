@@ -176,7 +176,7 @@
             </div>
         </div>
 
-        <div id="bot-container" style="width: 48%; border: 2px solid #dc3545; border-radius: 8px; padding-top: 20px; display: none;">
+        <div id="bot-container" style="width: 48%; border: 2px solid #dc3545; border-radius: 8px; padding-top: 20px; **display: none;**">
             <h3 style="text-align: center; color: #dc3545;">🤖 ボットの盤面</h3>
             <div id="game-container-bot" class="game-container">
                 <div id="bot-peg1" class="peg bot-peg">
@@ -311,18 +311,18 @@
                 startButton.textContent = 'ボットと対戦開始';
                 
                 // 画面分割を適用
-                botContainer.style.display = 'block'; 
                 wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%';
+                botContainer.style.display = 'block'; 
             } else {
                 botSpeedSelect.parentElement.style.display = 'flex'; // ボット速度の行を表示
                 rateRow.style.display = 'none';
                 startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
                 
                 // 画面分割を解除
-                botContainer.style.display = 'none'; 
                 wrapper.style.maxWidth = '500px'; 
                 playerContainer.style.width = '100%';
+                botContainer.style.display = 'none'; 
             }
             
             initGame();
@@ -548,7 +548,7 @@
         }
 
         /**
-         * プレイヤーによる円盤の移動実行 (省略: 修正なし)
+         * プレイヤーによる円盤の移動実行 
          */
         function attemptMove(sourceIndex, targetIndex) {
             const targetPeg = playerPegElements[targetIndex];
@@ -585,7 +585,7 @@
             sourcePegIndex = -1;
         }
 
-        // --- タイマーとベストタイム (省略: 修正なし) ---
+        // --- タイマーとベストタイム ---
         
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -787,7 +787,7 @@
         }
 
 
-        // --- 勝利判定とレート更新 (省略: 修正なし) ---
+        // --- 勝利判定とレート更新 ---
         
         /**
          * プレイヤーの勝利判定 (ボット単独モードの終了処理も兼ねる)
@@ -893,7 +893,7 @@
             rateDisplayElement.textContent = playerRate;
         }
 
-        // --- ベストタイム一覧表示 (省略: 修正なし) ---
+        // --- ベストタイム一覧表示 ---
         function displayBestTimes() {
             const container = document.getElementById('best-time-list-container');
             const records = [];
