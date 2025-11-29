@@ -74,7 +74,6 @@
 
         #controls {
             text-align: center;
-            margin-top: 20px;
             /* Flexアイテムを中央に揃えるための基本設定 */
             display: flex;
             flex-wrap: wrap;
@@ -82,6 +81,7 @@
             gap: 10px; /* 要素間の隙間 */
             width: 100%;
             max-width: 800px;
+            margin-top: 20px;
         }
         
         /* P要素（メッセージやステータス表示）は横いっぱいに使う */
@@ -441,12 +441,12 @@
                             startTimer(); 
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
-                                // ボットの動きも開始
+                                // 1. ボットの移動手順を計算してキューに格納
+                                moveQueue = []; // 念のためキューをクリア
+                                solveHanoi(disksCount, 0, 1, 2); 
+                                // 2. ボットの動きをインターバルで開始
                                 const speedMs = parseInt(botSpeedSelect.value, 10);
-                                if(speedMs > 0) {
-                                    solveHanoi(disksCount, 0, 1, 2); // キューを埋める
-                                    startBotMoves(speedMs);
-                                }
+                                if(speedMs > 0) startBotMoves(speedMs);
                             }
                         }
                         sourcePegIndex = pegIndex;
@@ -485,11 +485,10 @@
                             startTimer(); 
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
+                                moveQueue = [];
+                                solveHanoi(disksCount, 0, 1, 2); 
                                 const speedMs = parseInt(botSpeedSelect.value, 10);
-                                if(speedMs > 0) {
-                                    solveHanoi(disksCount, 0, 1, 2); // キューを埋める
-                                    startBotMoves(speedMs);
-                                }
+                                if(speedMs > 0) startBotMoves(speedMs);
                             }
                         }
                         sourcePegIndex = pegIndex;
@@ -683,7 +682,9 @@
             const isBotOnly = gameMode === 'bot_only';
             
             // 盤面と状態の参照先を決定
+            // ボット単独ならプレイヤー盤面、対戦ならボット盤面
             const targetPegs = isBotOnly ? playerPegElements : botPegElements; 
+            // ボット単独ならプレイヤー状態、対戦ならボット状態
             const targetState = isBotOnly ? playerPegsState : botPegsState; 
 
             const animationDelay = 150; 
@@ -691,7 +692,14 @@
             isBotRunning = true; 
             
             botInterval = setInterval(() => {
-                if (moveQueue.length > 0 && !botWon && !playerWon) {
+                // 対戦モードでプレイヤーが先にクリアした場合、ボットを停止
+                if (playerWon && gameMode === 'versus') {
+                    clearInterval(botInterval);
+                    isBotRunning = false;
+                    return;
+                }
+                
+                if (moveQueue.length > 0 && !botWon) {
                     const nextMove = moveQueue.shift();
                     
                     const sourcePeg = targetPegs[nextMove.from];
