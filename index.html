@@ -262,9 +262,11 @@
         let moveQueue = [];
         let playerWon = false;
         let botWon = false;
+        let botHandicapMoves = 0; 
+        let currentBotSpeedMs = 300; // ★新規: 現在のボット速度を保持するグローバル変数
 
         // レート関連
-        const RATE_K = 32;
+        const RATE_K = 16; 
         let playerRate = parseInt(localStorage.getItem('hanoi_player_rate') || '1000', 10);
         
         // 盤面状態
@@ -296,17 +298,14 @@
         const wrapper = document.getElementById('game-containers-wrapper');
         const playerContainer = document.getElementById('player-container');
         const executeButton = document.getElementById('execute-button'); 
-        // ボット速度制御のラッパー
         const botSpeedControls = document.getElementById('bot-speed-controls');
 
-        // ★追加: ローカルストレージキー
+        // ローカルストレージキー
         const STORAGE_KEY_BOT_SPEED = 'hanoi_bot_speed';
-
 
         // 物理定数
         const PEG_HEIGHT = 300;
         const DISK_MARGIN = 2;
-        const MIN_DISK_HEIGHT = 1;
         const MAX_PRACTICAL_DISKS = 64; 
 
         // --- イベントと初期化 ---
@@ -319,22 +318,19 @@
                 peg.addEventListener('click', handleClickPeg);
             });
             
-            // ★新規追加: ボット速度の初期設定とイベントリスナーの設定
             loadAndSetBotSpeed();
             botSpeedSelect.addEventListener('change', saveBotSpeed);
             
-            updateModeDisplay(); // 初期モード設定とUI更新
+            updateModeDisplay(); 
         };
         
         /**
-         * ★新規関数: ローカルストレージからボット速度を読み込み、ドロップダウンに設定する
+         * ローカルストレージからボット速度を読み込み、ドロップダウンに設定する
          */
         function loadAndSetBotSpeed() {
             const storedSpeed = localStorage.getItem(STORAGE_KEY_BOT_SPEED);
             
-            // 保持された速度がある場合はそれを使用、ない場合はデフォルト値 '300' を使用
             if (storedSpeed) {
-                // 選択肢にその値が存在するか確認
                 const optionExists = Array.from(botSpeedSelect.options).some(option => option.value === storedSpeed);
                 if (optionExists) {
                     botSpeedSelect.value = storedSpeed;
@@ -347,32 +343,22 @@
         }
         
         /**
-         * ★新規関数: ドロップダウンが変更されたときにボット速度をローカルストレージに保存する
+         * ドロップダウンが変更されたときにボット速度をローカルストレージに保存する
          */
         function saveBotSpeed() {
             localStorage.setItem(STORAGE_KEY_BOT_SPEED, botSpeedSelect.value);
         }
 
-        /**
-         * 実行ボタンのハンドラ関数
-         * モードに応じて startBot/initGame のどちらかを呼び出す
-         */
         function executeAction() {
             const mode = gameModeSelect.value;
             if (mode === 'manual') {
-                // ボットなし (手動) モードでは、盤面を初期化してプレイヤーの開始を待つ
                 initGame();
                 messageDisplay.textContent = "手動モード開始！最初の移動でタイマーがスタートします。";
             } else {
-                // ボット起動 or 対戦モードでは、ボット実行を開始する
                 startBot();
             }
         }
 
-        /**
-         * リセットボタンのハンドラ関数
-         * 状況に関わらず、全てを停止して初期化する
-         */
         function resetGame() {
             if (botInterval) {
                 clearInterval(botInterval);
@@ -382,62 +368,43 @@
             playerWon = false;
             botWon = false;
             moveQueue = [];
+            botHandicapMoves = 0; 
+            currentBotSpeedMs = 300; 
             
-            // 円盤数とモードは維持して、盤面を初期化
             initGame();
             messageDisplay.textContent = "🔄 ゲームがリセットされました。モードを選択し、円盤の数と速度を設定して実行を押してください。";
         }
 
 
-        /**
-         * モード選択に応じてUIとレイアウトを更新する (画面分割の制御)
-         */
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
             const rateRow = document.getElementById('rate-display');
             let buttonLabel = '';
             
             if (mode === 'versus') {
-                // 対戦モードの場合
-                // ボット速度制御は非表示
                 botSpeedControls.style.display = 'none'; 
-                // レート表示は表示
                 rateRow.style.display = 'block';
                 buttonLabel = '対戦開始！';
-                
-                // 画面分割を適用
                 wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%'; 
                 botContainer.style.display = 'block'; 
             } else if (mode === 'bot_only') {
-                 // ボット単独モードの場合
-                // ボット速度制御は表示 (Flexで横並び)
                 botSpeedControls.style.display = 'flex'; 
-                // レート表示は非表示
                 rateRow.style.display = 'none';
                 buttonLabel = 'ボット起動！';
-                
-                // 画面分割を解除
                 wrapper.style.maxWidth = '90%'; 
                 playerContainer.style.width = '100%'; 
                 botContainer.style.display = 'none'; 
-            } else { // 'manual' (ボットなし) モードの場合
-                // ボット速度制御は非表示
+            } else { 
                 botSpeedControls.style.display = 'none'; 
-                // レート表示は非表示
                 rateRow.style.display = 'none';
                 buttonLabel = 'ゲーム開始！';
-                
-                // 画面分割を解除
                 wrapper.style.maxWidth = '90%'; 
                 playerContainer.style.width = '100%'; 
                 botContainer.style.display = 'none'; 
             }
             
-            // 実行ボタンのラベルを更新
             executeButton.textContent = buttonLabel;
-
-            // 初期化（UI変更時も盤面をリセット）
             initGame();
         }
 
@@ -448,7 +415,7 @@
             if(botInterval) clearInterval(botInterval); 
 
             let newDisksCount = parseInt(disksInput.value);
-            // ... (円盤数チェックと設定) ...
+            
             if (isNaN(newDisksCount) || newDisksCount < 3 || newDisksCount > MAX_PRACTICAL_DISKS) {
                 alert(`円盤の数は3から${MAX_PRACTICAL_DISKS}の間で設定してください。3枚に戻します。`);
                 disksCount = 3;
@@ -474,6 +441,7 @@
             botWon = false;
             isBotRunning = false; 
             moveQueue = []; 
+            botHandicapMoves = 0;
 
             resetTimerDisplay();
             isTimerRunning = false;
@@ -481,7 +449,6 @@
             const currentBestTimeMs = getBestTime(disksCount);
             bestTimeDisplay.textContent = formatTime(currentBestTimeMs);
 
-            // 盤面のリセット (両方)
             playerPegElements.forEach(peg => {
                 peg.querySelectorAll('.disk').forEach(disk => disk.remove());
             });
@@ -492,7 +459,6 @@
             playerPegsState = [[], [], []]; 
             botPegsState = [[], [], []]; 
 
-            // --- 動的なサイズ計算と円盤の配置 ---
             const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
             const availableHeight = PEG_HEIGHT - totalMarginHeight;
             const diskHeight = Math.floor(availableHeight / disksCount);
@@ -507,7 +473,6 @@
                 const diskWidth = MIN_WIDTH + ((i - 1) / (disksCount - 1 || 1)) * widthRange;
                 const hue = (i / disksCount) * 360;
 
-                // プレイヤー盤面の円盤配置
                 const pDisk = document.createElement('div');
                 pDisk.classList.add('disk', 'player-disk');
                 pDisk.dataset.size = i;
@@ -517,7 +482,6 @@
                 playerPegElements[0].appendChild(pDisk);
                 playerPegsState[0].push(i);
 
-                // 対戦モードの場合のみボット盤面にも円盤を配置
                 if (gameMode === 'versus') {
                     const bDisk = document.createElement('div');
                     bDisk.classList.add('disk', 'bot-disk');
@@ -530,23 +494,32 @@
                 }
             }
 
-            // 対戦モードのボット速度設定（レートに基づく自動調整）
+            // ★修正点: 対戦モードでのボット速度と手数ハンデの計算
             if (gameMode === 'versus') {
-                const maxSpeed = 500;
-                const minSpeed = 10;
                 const rateMin = 500;
                 const rateMax = 1500;
+                
+                // 1. ボット速度の計算
+                const maxSpeedMs = 500; 
+                const minSpeedMs = 10;  
                 
                 let normalizedRate = Math.min(rateMax, Math.max(rateMin, playerRate));
                 const rateRatio = (normalizedRate - rateMin) / (rateMax - rateMin); 
                 
-                let botSpeed = maxSpeed - rateRatio * (maxSpeed - minSpeed);
-                botSpeed = Math.round(Math.max(minSpeed, botSpeed));
-
-                // ボット速度ドロップダウン自体は非表示だが、速度計算は実行
-                // botSpeedSelect.value = botSpeed.toString(); // 対戦モードではドロップダウンは使わないため不要
+                let botSpeed = maxSpeedMs - rateRatio * (maxSpeedMs - minSpeedMs);
+                currentBotSpeedMs = Math.round(Math.max(minSpeedMs, botSpeed)); // グローバル変数に保存
                 
-                messageDisplay.textContent = `⚔️ 対戦モード: ボット速度 ${botSpeed}ms で競います！現在のレート ${playerRate}。実行ボタンで開始。`;
+                // 2. ボットの手数ハンデの計算
+                const maxHandicapRatio = 0.20; 
+                const handicapRatio = maxHandicapRatio * (1 - rateRatio); 
+                
+                // ★修正点: Math.round()で整数に丸める
+                const addedMoves = Math.round(minMoves * handicapRatio); 
+                botHandicapMoves = addedMoves;
+
+                const botTotalMoves = minMoves + addedMoves;
+
+                messageDisplay.textContent = `⚔️ 対戦準備完了！現在のレート ${playerRate}。ボットは ${botTotalMoves}手 (${addedMoves}手ハンデ) と速度 ${currentBotSpeedMs}ms で競います。実行ボタンで開始。`;
             } else if (gameMode === 'bot_only') {
                  messageDisplay.textContent = `🤖 ボットモード: 実行ボタンを押すと自動解決を開始します。`;
             } else {
@@ -557,7 +530,6 @@
         // --- プレイヤー操作 ---
 
         function handleClickPeg(event) {
-            // ボット単独モード実行中はプレイヤー操作を禁止
             if (isBotRunning && gameModeSelect.value !== 'versus') {
                 messageDisplay.textContent = "ボットが実行中のため、手動操作はできません。";
                 return;
@@ -571,22 +543,18 @@
                 if (sourcePegIndex === -1) {
                     const topDisk = playerPegElements[pegIndex].querySelector('.disk:last-child');
                     if (topDisk) {
-                        // ★対戦モードの開始トリガー（ここでボットの動きをセット）★
                         if (!isTimerRunning) { 
                             startTimer(); 
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
-                                // 1. 【開始時チェック】ボットの移動手順を計算してキューに格納
-                                moveQueue = []; // キューをクリア
-                                solveHanoi(disksCount, 0, 1, 2); 
+                                moveQueue = []; 
+                                // ハンデ手数に基づいてボットの動きを生成する関数を呼び出し
+                                generateBotMovesWithHandicap(disksCount, 0, 1, 2, botHandicapMoves);
                                 
-                                if (moveQueue.length > 0) { // キューに移動手順が入っているかチェック
-                                    // 2. ボットの動きをインターバルで開始（レートに基づいて計算された速度を使用）
-                                    // initGame()で計算されたボット速度を使用
-                                    const botSpeed = parseInt(messageDisplay.textContent.match(/ボット速度 (\d+)ms/)?.[1] || '300', 10);
-                                    if(botSpeed > 0) startBotMoves(botSpeed);
+                                if (moveQueue.length > 0) { 
+                                    // グローバル変数 currentBotSpeedMs を使用
+                                    if(currentBotSpeedMs > 0) startBotMoves(currentBotSpeedMs);
                                 } else {
-                                    // 円盤数が3以上に強制されているため、基本的には発生しないはず
                                     console.error("Bot Start Error: Move queue generation failed.");
                                     messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
                                 }
@@ -629,11 +597,11 @@
                             isTimerRunning = true; 
                             if (gameModeSelect.value === 'versus') {
                                 moveQueue = [];
-                                solveHanoi(disksCount, 0, 1, 2); 
+                                generateBotMovesWithHandicap(disksCount, 0, 1, 2, botHandicapMoves); 
                                 
                                 if (moveQueue.length > 0) {
-                                    const botSpeed = parseInt(messageDisplay.textContent.match(/ボット速度 (\d+)ms/)?.[1] || '300', 10);
-                                    if(botSpeed > 0) startBotMoves(botSpeed);
+                                    // グローバル変数 currentBotSpeedMs を使用
+                                    if(currentBotSpeedMs > 0) startBotMoves(currentBotSpeedMs);
                                 } else {
                                      console.error("Bot Start Error: Move queue generation failed (Key Press).");
                                      messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
@@ -664,9 +632,6 @@
             }
         }
 
-        /**
-         * プレイヤーによる円盤の移動実行 
-         */
         function attemptMove(sourceIndex, targetIndex) {
             const targetPeg = playerPegElements[targetIndex];
             const topDiskOnTarget = targetPeg.querySelector('.disk:last-child');
@@ -677,7 +642,6 @@
                 selectedDisk.parentNode.removeChild(selectedDisk);
                 targetPeg.appendChild(selectedDisk);
                 
-                // 状態配列を更新
                 playerPegsState[sourceIndex].pop();
                 playerPegsState[targetIndex].push(selectedSize);
 
@@ -760,6 +724,9 @@
         
         // --- ボットロジック ---
 
+        /**
+         * 最小手数でハノイの塔を解くための移動手順をmoveQueueに追加する
+         */
         function solveHanoi(n, source, auxiliary, destination) {
             if (n === 1) {
                 moveQueue.push({ from: source, to: destination });
@@ -771,49 +738,136 @@
         }
 
         /**
-         * ボットによるゲームの自動開始と実行 (モード判定)
+         * ★新規導入機能: レートに基づくハンデ手数込みでボットの移動手順を生成
          */
+        function generateBotMovesWithHandicap(n, source, auxiliary, destination, addedMoves) {
+            // ボットの初期状態をシミュレーション用に複製
+            let simState = JSON.parse(JSON.stringify(botPegsState));
+
+            // 最小手数での移動手順をすべて生成
+            moveQueue = [];
+            solveHanoi(n, source, auxiliary, destination);
+            
+            if (addedMoves <= 0) return;
+
+            // ハンデを適用: 最小手数ムーブの間に、サイズ1の円盤の無駄な移動を挿入
+            let tempQueue = [];
+            let wastedMoves = 0;
+            
+            // 円盤1は常に動かせるので、これを利用して無駄な移動を挿入
+            const DISK_SIZE_1 = 1;
+            
+            for (let j = 0; j < moveQueue.length && wastedMoves < addedMoves; j++) {
+                const move = moveQueue[j];
+                
+                // 最小手数ムーブを実行 (シミュレーション)
+                const movedDiskSize = simState[move.from].pop(); 
+                simState[move.to].push(movedDiskSize);
+                tempQueue.push(move); 
+
+                // 無駄な移動の挿入
+                if (wastedMoves < addedMoves) {
+                    const disk1Location = simState.findIndex(peg => peg.includes(DISK_SIZE_1));
+                    
+                    if (disk1Location !== -1) {
+                        let wasteTarget = (disk1Location + 1) % 3; 
+                        
+                        // 移動ルールに従い、ターゲット杭の最上位円盤より小さくなければならない (サイズ1は常にOK)
+                        // ただし、ターゲット杭に円盤1がないことを確認（移動しない杭を選ぶ）
+                        
+                        // 別の杭 (1, 2) のうち、サイズ1が現在いない杭を選ぶ
+                        let possibleTargets = [0, 1, 2].filter(p => p !== disk1Location);
+                        
+                        // どちらに動かすか
+                        let targetPegIndex = possibleTargets[0];
+                        // ターゲット杭の最上位円盤サイズ
+                        const topDiskSizeTarget = simState[targetPegIndex].length > 0 ? simState[targetPegIndex][simState[targetPegIndex].length - 1] : Infinity;
+
+                        // ターゲット杭に円盤1よりも大きな円盤があるか、または空であるかを確認
+                        if (topDiskSizeTarget < DISK_SIZE_1) {
+                            // ターゲット杭に円盤1より小さい円盤がある場合は、もう一方の杭を試す
+                             targetPegIndex = possibleTargets[1];
+                        }
+                        
+                        if (disk1Location !== targetPegIndex) {
+                            
+                            // 無駄な移動 (円盤1を動かす)
+                            tempQueue.push({ from: disk1Location, to: targetPegIndex });
+                            
+                            // 盤面状態も更新
+                            simState[disk1Location].pop(); 
+                            simState[targetPegIndex].push(DISK_SIZE_1);
+                            
+                            wastedMoves++;
+                        }
+                    }
+                }
+            }
+            
+            // 最後に追加の無駄な移動が残っている場合
+            while(wastedMoves < addedMoves) {
+                // 円盤1の位置を見つける
+                const disk1Location = simState.findIndex(peg => peg.includes(DISK_SIZE_1));
+                if (disk1Location === -1) break; // エラー
+                
+                // 別の杭 (1, 2) のうち、サイズ1が現在いない杭を選ぶ
+                let possibleTargets = [0, 1, 2].filter(p => p !== disk1Location);
+                let targetPegIndex = possibleTargets[0];
+                const topDiskSizeTarget = simState[targetPegIndex].length > 0 ? simState[targetPegIndex][simState[targetPegIndex].length - 1] : Infinity;
+
+                if (topDiskSizeTarget < DISK_SIZE_1) {
+                     targetPegIndex = possibleTargets[1];
+                }
+                
+                if (disk1Location !== targetPegIndex) {
+                    tempQueue.push({ from: disk1Location, to: targetPegIndex });
+                    simState[disk1Location].pop(); 
+                    simState[targetPegIndex].push(DISK_SIZE_1);
+                    wastedMoves++;
+                } else {
+                    break; // 動かせる場所がない (基本的には発生しない)
+                }
+            }
+
+            // 最小手数ムーブを、ハンデ込みのムーブで置き換える
+            moveQueue = tempQueue;
+            console.log(`Bot handicap applied: ${minMoves} moves + ${moveQueue.length - minMoves} wasted moves = ${moveQueue.length} total.`);
+        }
+        
         function startBot() {
             const gameMode = gameModeSelect.value;
             
-            if (gameMode === 'manual') {
-                // manualモードはexecuteAction()でinitGame()を呼ぶため、ここは実行されない
-                return;
-            }
+            if (gameMode === 'manual') return;
 
-            // 既に実行中の場合はリセットして再開
             if(playerWon || botWon || isBotRunning) {
                  resetGame();
-                 // resetGameがinitGameを呼んでいるので、再度initGameは不要
             }
 
-            // 対戦モードの場合は、最初のプレイヤー操作でタイマーとボットが開始する
             if (gameMode === 'versus') {
-                messageDisplay.textContent = `⚔️ 対戦準備完了！最初の移動でタイマーとボットがスタートします。`;
+                // initGame()で計算された速度と手数情報を使用してメッセージを再表示
+                const botTotalMoves = minMoves + botHandicapMoves;
+                messageDisplay.textContent = `⚔️ 対戦準備完了！現在のレート ${playerRate}。ボットは ${botTotalMoves}手 (${botHandicapMoves}手ハンデ) と速度 ${currentBotSpeedMs}ms で競います。実行ボタンで開始。`;
                 return;
             }
             
             // ボット単独モードの場合
-            // initGame()はresetGame()で既に呼ばれている
             isBotRunning = true;
             moveQueue = [];
-            solveHanoi(disksCount, 0, 1, 2); 
+            solveHanoi(disksCount, 0, 1, 2); // ボット単独モードは常に最小手数
 
             const selectedSpeedMs = parseInt(botSpeedSelect.value, 10);
             const isSimulationMode = selectedSpeedMs === 0;
 
             if (isSimulationMode) {
-                // 超高速シミュレーションモード
                 startTimer();
                 moves = moveQueue.length; 
                 movesDisplay.textContent = moves;
                 moveQueue = []; 
-                checkWin(true); // 強制勝利フラグ
+                checkWin(true); 
                 isBotRunning = false;
                 return;
             }
             
-            // アニメーションありのボット実行
             startTimer();
             startBotMoves(selectedSpeedMs);
             messageDisplay.textContent = "🤖 ボットが最小手数での解決を開始しました。";
@@ -821,6 +875,7 @@
 
         /**
          * ボットの移動実行インターバル開始
+         * @param {number} speedMs - ボットの移動間隔 (ms)
          */
         function startBotMoves(speedMs) {
             if (botInterval) clearInterval(botInterval);
@@ -828,46 +883,43 @@
             const gameMode = gameModeSelect.value;
             const isBotOnly = gameMode === 'bot_only';
             
-            // 盤面と状態の参照先を決定
             const targetPegs = isBotOnly ? playerPegElements : botPegElements; 
             const targetState = isBotOnly ? playerPegsState : botPegsState; 
+            
+            // ★修正点: 対戦モードの場合、グローバル変数 (initGameで計算済み) を使用
+            let actualSpeedMs = speedMs;
+            if (gameMode === 'versus') {
+                 actualSpeedMs = currentBotSpeedMs;
+            }
 
             const animationDelay = 150; 
-            const shouldSkipAnimation = speedMs <= 150; 
+            const shouldSkipAnimation = actualSpeedMs <= 150; 
             isBotRunning = true; 
             
             botInterval = setInterval(() => {
-                // 【実行時チェック 1】プレイヤーが先に勝った場合はボットを停止
                 if (playerWon && gameMode === 'versus') {
                     clearInterval(botInterval);
                     isBotRunning = false;
-                    console.log("Bot Stop: Player won.");
                     return;
                 }
                 
-                // 【実行時チェック 2】キューが空、またはボットが既に勝っている場合は停止
                 if (moveQueue.length === 0 || botWon) {
                     clearInterval(botInterval);
                     isBotRunning = false;
-                    console.log("Bot Stop: Queue empty or Bot won.");
                     return;
                 }
                 
-                // 次の移動を取得
                 const nextMove = moveQueue.shift();
                 
                 const sourcePeg = targetPegs[nextMove.from];
                 const targetPeg = targetPegs[nextMove.to];
                 
-                // 【実行時チェック 3】動かす円盤要素が存在するか確認
                 const diskElement = sourcePeg.querySelector('.disk:last-child');
                 
                 if (diskElement) {
-                    // 状態配列を更新
                     const diskSize = targetState[nextMove.from].pop();
                     targetState[nextMove.to].push(diskSize);
                     
-                    // DOM操作
                     if (shouldSkipAnimation) {
                         diskElement.parentNode.removeChild(diskElement);
                         targetPeg.appendChild(diskElement);
@@ -880,7 +932,6 @@
                         }, animationDelay);
                     }
 
-                    // ボットの勝利判定
                     if (moveQueue.length === 0) {
                         if (isBotOnly) {
                             checkWin(true); 
@@ -892,22 +943,18 @@
                         isBotRunning = false;
                     }
                 } else {
-                    // 【実行時チェック 4】円盤要素がない場合（何か問題が発生した可能性）
                     console.error(`Bot Error: Source peg ${nextMove.from + 1} is empty but move queue suggests a move. Stopping bot.`);
                     clearInterval(botInterval);
                     isBotRunning = false;
                     messageDisplay.textContent = "🚨 ボット動作エラー：予期せぬ盤面状態のため停止しました。リセットしてください。";
                 }
 
-            }, speedMs);
+            }, actualSpeedMs); 
         }
 
 
         // --- 勝利判定とレート更新 ---
         
-        /**
-         * プレイヤーの勝利判定 (ボット単独モードの終了処理も兼ねる)
-         */
         function checkWin(isSimulation = false) {
             if (playerWon || botWon) return; 
 
@@ -924,15 +971,12 @@
                 let bestTimeMessage = '';
 
                 if (gameMode === 'versus') {
-                    // 対戦モード
-                    if (botInterval) clearInterval(botInterval); // ボット停止
-                    updateRate(true); // プレイヤー勝利でレートアップ
+                    if (botInterval) clearInterval(botInterval); 
+                    updateRate(true); 
                     messageDisplay.textContent = `🏆 プレイヤー勝利！レートが更新されました (${rateDisplayElement.textContent})。`;
                 } else {
-                    // ボットなし/ボット単独モードの勝利メッセージ
                     winMessage = `🎉 ${isSimulation ? 'ボットが' : 'おめでとうございます！'} ${disksCount}個の円盤を移動させました。`;
                     
-                    // 手数表示 (ボット単独モードの場合は最小手数)
                     const actualMoves = isSimulation ? minMoves : moves;
                     const minMovesStr = minMovesDisplay.textContent;
                     if (actualMoves === minMoves) {
@@ -965,22 +1009,17 @@
             }
         }
 
-        /**
-         * ボットの勝利判定（ボットの移動完了時）
-         */
         function botWinCheck() {
             if (playerWon || botWon) return; 
             
-            // ボットの最終状態を確認
             const isBotWin = (botPegsState[1].length === disksCount) || (botPegsState[2].length === disksCount);
 
             if (isBotWin) {
                 botWon = true; 
                 stopTimer();
                 
-                // プレイヤーがまだクリアしていない場合
                 if (!playerWon) {
-                    updateRate(false); // プレイヤー敗北でレートダウン
+                    updateRate(false); 
                     messageDisplay.textContent = `🤖 ボット勝利！レートが更新されました (${rateDisplayElement.textContent})。`;
                 }
             }
@@ -993,17 +1032,21 @@
         function updateRate(didPlayerWin) {
             const K = RATE_K; 
             
-            const botBaseRate = 800; 
-            const diskFactor = Math.min(60, disksCount - 3) * 20; 
+            const botBaseRate = 600; 
+            const diskFactor = Math.min(60, disksCount - 3) * 15; 
             const botVirtualRate = botBaseRate + diskFactor; 
 
+            // 期待勝率 We
             const expectedScore = 1 / (1 + Math.pow(10, (botVirtualRate - playerRate) / 400));
+            // 実際の結果 W (勝利なら 1, 敗北なら 0)
             const actualScore = didPlayerWin ? 1 : 0;
             
+            // レート変動 = K * (W - We)
             const rateChange = Math.round(K * (actualScore - expectedScore));
             
             const newRate = playerRate + rateChange;
 
+            // レートの下限を100に設定
             playerRate = Math.max(100, newRate); 
             localStorage.setItem('hanoi_player_rate', playerRate.toString());
             rateDisplayElement.textContent = playerRate;
