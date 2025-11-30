@@ -227,7 +227,7 @@
                 <label for="bot-speed" style="width: auto; color: #007bff; font-weight: bold;">ボット速度:</label>
                 <select id="bot-speed">
                     <option value="500">遅い (0.5秒)</option>
-                    <option value="300" selected>標準 (0.3秒)</option>
+                    <option value="300">標準 (0.3秒)</option>
                     <option value="150">速い (0.15秒)</option>
                     <option value="10">処理限界 (0.01秒)</option>
                     <option value="0">超高速シミュレーション</option> 
@@ -299,6 +299,9 @@
         // ボット速度制御のラッパー
         const botSpeedControls = document.getElementById('bot-speed-controls');
 
+        // ★追加: ローカルストレージキー
+        const STORAGE_KEY_BOT_SPEED = 'hanoi_bot_speed';
+
 
         // 物理定数
         const PEG_HEIGHT = 300;
@@ -315,9 +318,41 @@
             playerPegElements.forEach(peg => {
                 peg.addEventListener('click', handleClickPeg);
             });
+            
+            // ★新規追加: ボット速度の初期設定とイベントリスナーの設定
+            loadAndSetBotSpeed();
+            botSpeedSelect.addEventListener('change', saveBotSpeed);
+            
             updateModeDisplay(); // 初期モード設定とUI更新
         };
         
+        /**
+         * ★新規関数: ローカルストレージからボット速度を読み込み、ドロップダウンに設定する
+         */
+        function loadAndSetBotSpeed() {
+            const storedSpeed = localStorage.getItem(STORAGE_KEY_BOT_SPEED);
+            
+            // 保持された速度がある場合はそれを使用、ない場合はデフォルト値 '300' を使用
+            if (storedSpeed) {
+                // 選択肢にその値が存在するか確認
+                const optionExists = Array.from(botSpeedSelect.options).some(option => option.value === storedSpeed);
+                if (optionExists) {
+                    botSpeedSelect.value = storedSpeed;
+                } else {
+                    botSpeedSelect.value = '300'; 
+                }
+            } else {
+                botSpeedSelect.value = '300'; 
+            }
+        }
+        
+        /**
+         * ★新規関数: ドロップダウンが変更されたときにボット速度をローカルストレージに保存する
+         */
+        function saveBotSpeed() {
+            localStorage.setItem(STORAGE_KEY_BOT_SPEED, botSpeedSelect.value);
+        }
+
         /**
          * 実行ボタンのハンドラ関数
          * モードに応じて startBot/initGame のどちらかを呼び出す
@@ -495,7 +530,7 @@
                 }
             }
 
-            // 対戦モードのボット速度設定
+            // 対戦モードのボット速度設定（レートに基づく自動調整）
             if (gameMode === 'versus') {
                 const maxSpeed = 500;
                 const minSpeed = 10;
@@ -508,7 +543,8 @@
                 let botSpeed = maxSpeed - rateRatio * (maxSpeed - minSpeed);
                 botSpeed = Math.round(Math.max(minSpeed, botSpeed));
 
-                botSpeedSelect.value = botSpeed.toString();
+                // ボット速度ドロップダウン自体は非表示だが、速度計算は実行
+                // botSpeedSelect.value = botSpeed.toString(); // 対戦モードではドロップダウンは使わないため不要
                 
                 messageDisplay.textContent = `⚔️ 対戦モード: ボット速度 ${botSpeed}ms で競います！現在のレート ${playerRate}。実行ボタンで開始。`;
             } else if (gameMode === 'bot_only') {
@@ -545,9 +581,10 @@
                                 solveHanoi(disksCount, 0, 1, 2); 
                                 
                                 if (moveQueue.length > 0) { // キューに移動手順が入っているかチェック
-                                    // 2. ボットの動きをインターバルで開始
-                                    const speedMs = parseInt(botSpeedSelect.value, 10);
-                                    if(speedMs > 0) startBotMoves(speedMs);
+                                    // 2. ボットの動きをインターバルで開始（レートに基づいて計算された速度を使用）
+                                    // initGame()で計算されたボット速度を使用
+                                    const botSpeed = parseInt(messageDisplay.textContent.match(/ボット速度 (\d+)ms/)?.[1] || '300', 10);
+                                    if(botSpeed > 0) startBotMoves(botSpeed);
                                 } else {
                                     // 円盤数が3以上に強制されているため、基本的には発生しないはず
                                     console.error("Bot Start Error: Move queue generation failed.");
@@ -595,8 +632,8 @@
                                 solveHanoi(disksCount, 0, 1, 2); 
                                 
                                 if (moveQueue.length > 0) {
-                                    const speedMs = parseInt(botSpeedSelect.value, 10);
-                                    if(speedMs > 0) startBotMoves(speedMs);
+                                    const botSpeed = parseInt(messageDisplay.textContent.match(/ボット速度 (\d+)ms/)?.[1] || '300', 10);
+                                    if(botSpeed > 0) startBotMoves(botSpeed);
                                 } else {
                                      console.error("Bot Start Error: Move queue generation failed (Key Press).");
                                      messageDisplay.textContent = "警告: ボットの移動手順が生成できませんでした。";
