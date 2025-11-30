@@ -223,14 +223,16 @@
                 <option value="versus">ボットと対戦</option>
             </select>
             
-            <label for="bot-speed" style="width: auto; color: #007bff; font-weight: bold;">ボット速度:</label>
-            <select id="bot-speed">
-                <option value="500">遅い (0.5秒)</option>
-                <option value="300" selected>標準 (0.3秒)</option>
-                <option value="150">速い (0.15秒)</option>
-                <option value="10">処理限界 (0.01秒)</option>
-                <option value="0">超高速シミュレーション</option> 
-            </select>
+            <div id="bot-speed-controls" style="display: flex; gap: 10px; align-items: center;">
+                <label for="bot-speed" style="width: auto; color: #007bff; font-weight: bold;">ボット速度:</label>
+                <select id="bot-speed">
+                    <option value="500">遅い (0.5秒)</option>
+                    <option value="300" selected>標準 (0.3秒)</option>
+                    <option value="150">速い (0.15秒)</option>
+                    <option value="10">処理限界 (0.01秒)</option>
+                    <option value="0">超高速シミュレーション</option> 
+                </select>
+            </div>
         </div>
         
         <p id="rate-display" style="display: none;">現在のレート: <span id="player-rate">1000</span></p>
@@ -293,8 +295,9 @@
         const botContainer = document.getElementById('bot-container'); 
         const wrapper = document.getElementById('game-containers-wrapper');
         const playerContainer = document.getElementById('player-container');
-        // ★新規追加: 実行ボタンのDOM要素
         const executeButton = document.getElementById('execute-button'); 
+        // ★新規追加: ボット速度制御のラッパー
+        const botSpeedControls = document.getElementById('bot-speed-controls');
 
 
         // 物理定数
@@ -316,7 +319,7 @@
         };
         
         /**
-         * ★新規追加: 実行ボタンのハンドラ関数
+         * 実行ボタンのハンドラ関数
          * モードに応じて startBot/initGame のどちらかを呼び出す
          */
         function executeAction() {
@@ -332,7 +335,7 @@
         }
 
         /**
-         * ★新規追加: リセットボタンのハンドラ関数
+         * リセットボタンのハンドラ関数
          * 状況に関わらず、全てを停止して初期化する
          */
         function resetGame() {
@@ -361,7 +364,8 @@
             
             if (mode === 'versus') {
                 // 対戦モードの場合: 左右に分割
-                botSpeedSelect.parentElement.style.display = 'none'; 
+                // ★修正箇所: ボット速度制御のラッパーのみを非表示にする
+                botSpeedControls.style.display = 'none'; 
                 rateRow.style.display = 'block';
                 buttonLabel = '対戦開始！';
                 
@@ -371,7 +375,8 @@
                 botContainer.style.display = 'block'; 
             } else {
                 // 単独モードの場合: 画面いっぱいに広げる
-                botSpeedSelect.parentElement.style.display = 'flex'; 
+                // ★修正箇所: ボット速度制御のラッパーを再表示する
+                botSpeedControls.style.display = 'flex'; 
                 rateRow.style.display = 'none';
                 
                 if (mode === 'manual') {
@@ -386,7 +391,7 @@
                 botContainer.style.display = 'none'; 
             }
             
-            // ★実行ボタンのラベルを更新
+            // 実行ボタンのラベルを更新
             executeButton.textContent = buttonLabel;
 
             // 初期化（UI変更時も盤面をリセット）
