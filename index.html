@@ -159,7 +159,7 @@
 
     <h1>ハノイの塔 ⚔️ 対戦モード</h1>
 
-    <div id="game-containers-wrapper" style="display: flex; justify-content: space-around; width: 90%; max-width: 500px; margin: 20px 0;">
+    <div id="game-containers-wrapper" style="display: flex; justify-content: space-around; width: 90%; margin: 20px 0;">
         
         <div id="player-container" style="width: 100%; border: 2px solid #007bff; border-radius: 8px; padding-top: 20px;">
             <h3 style="text-align: center; color: #007bff;">🧑 プレイヤーの盤面</h3>
@@ -176,7 +176,7 @@
             </div>
         </div>
 
-        <div id="bot-container" style="width: 48%; border: 2px solid #dc3545; border-radius: 8px; padding-top: 20px; **display: none;**">
+        <div id="bot-container" style="width: 48%; border: 2px solid #dc3545; border-radius: 8px; padding-top: 20px; display: none;">
             <h3 style="text-align: center; color: #dc3545;">🤖 ボットの盤面</h3>
             <div id="game-container-bot" class="game-container">
                 <div id="bot-peg1" class="peg bot-peg">
@@ -299,6 +299,7 @@
         
         /**
          * モード選択に応じてUIとレイアウトを更新する (画面分割の制御)
+         * ★ここが画面分割の制御ロジックです。
          */
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
@@ -306,23 +307,25 @@
             const rateRow = document.getElementById('rate-display');
 
             if (mode === 'versus') {
-                botSpeedSelect.parentElement.style.display = 'none'; // ボット速度の行を非表示
+                // 対戦モードの場合: 左右に分割
+                botSpeedSelect.parentElement.style.display = 'none'; 
                 rateRow.style.display = 'block';
                 startButton.textContent = 'ボットと対戦開始';
                 
                 // 画面分割を適用
-                wrapper.style.maxWidth = '1000px'; 
-                playerContainer.style.width = '48%';
-                botContainer.style.display = 'block'; 
+                wrapper.style.maxWidth = '1000px'; // 全体の最大幅を広げる
+                playerContainer.style.width = '48%'; // プレイヤー盤面を48%に制限
+                botContainer.style.display = 'block'; // ボット盤面を表示
             } else {
-                botSpeedSelect.parentElement.style.display = 'flex'; // ボット速度の行を表示
+                // 単独モードの場合: 画面いっぱいに広げる
+                botSpeedSelect.parentElement.style.display = 'flex'; 
                 rateRow.style.display = 'none';
                 startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
                 
                 // 画面分割を解除
-                wrapper.style.maxWidth = '500px'; 
-                playerContainer.style.width = '100%';
-                botContainer.style.display = 'none'; 
+                wrapper.style.maxWidth = '90%'; // 全体の最大幅を戻す（画面幅の90%）
+                playerContainer.style.width = '100%'; // プレイヤー盤面を100%にする
+                botContainer.style.display = 'none'; // ボット盤面を非表示
             }
             
             initGame();
