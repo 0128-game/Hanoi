@@ -99,16 +99,28 @@
             display: inline-block;
         }
         
-        button {
+        /* 実行ボタンのスタイル */
+        #execute-button {
             background-color: #007bff;
             color: white;
             border: 1px solid #007bff;
             transition: background-color 0.2s;
         }
-
-        button:hover {
+        #execute-button:hover {
             background-color: #0056b3;
         }
+        
+        /* リセットボタンのスタイル */
+        #reset-button {
+            background-color: #ffc107;
+            color: #212529;
+            border: 1px solid #ffc107;
+            transition: background-color 0.2s;
+        }
+        #reset-button:hover {
+            background-color: #e0a800;
+        }
+
 
         /* ドロップダウンリストのCSS修正 */
         select {
@@ -196,8 +208,11 @@
         <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
             <label for="disks" style="width: auto;">円盤の数 (3-64):</label> 
             <input type="number" id="disks" value="3" min="3" max="64">
-            <button onclick="initGame()">ゲーム開始/リセット</button>
-            <button onclick="startBot()">ボット実行/対戦開始</button>
+        </div>
+
+        <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
+            <button id="execute-button" onclick="executeAction()">ゲーム開始！</button>
+            <button id="reset-button" onclick="resetGame()">リセット</button>
         </div>
 
         <div style="width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
@@ -219,7 +234,7 @@
         </div>
         
         <p id="rate-display" style="display: none;">現在のレート: <span id="player-rate">1000</span></p>
-        <p id="message">モードを選択し、円盤の数と速度を設定してゲーム開始/リセットを押してください。</p>
+        <p id="message">モードを選択し、円盤の数と速度を設定して実行またはリセットを押してください。</p>
         <p>手数: <span id="moves">0</span> / 最小手数: <span id="min-moves"></span></p>
         <p>経過時間: <span id="time-elapsed">00:00.00</span></p>
         <p>ベストタイム (現行円盤数): <span id="best-time">---</span></p>
@@ -278,6 +293,9 @@
         const botContainer = document.getElementById('bot-container'); 
         const wrapper = document.getElementById('game-containers-wrapper');
         const playerContainer = document.getElementById('player-container');
+        // ★新規追加: 実行ボタンのDOM要素
+        const executeButton = document.getElementById('execute-button'); 
+
 
         // 物理定数
         const PEG_HEIGHT = 300;
@@ -294,40 +312,84 @@
             playerPegElements.forEach(peg => {
                 peg.addEventListener('click', handleClickPeg);
             });
-            updateModeDisplay(); // 初期モード設定
+            updateModeDisplay(); // 初期モード設定とUI更新
         };
         
         /**
+         * ★新規追加: 実行ボタンのハンドラ関数
+         * モードに応じて startBot/initGame のどちらかを呼び出す
+         */
+        function executeAction() {
+            const mode = gameModeSelect.value;
+            if (mode === 'manual') {
+                // ボットなし (手動) モードでは、盤面を初期化してプレイヤーの開始を待つ
+                initGame();
+                messageDisplay.textContent = "手動モード開始！最初の移動でタイマーがスタートします。";
+            } else {
+                // ボット起動 or 対戦モードでは、ボット実行を開始する
+                startBot();
+            }
+        }
+
+        /**
+         * ★新規追加: リセットボタンのハンドラ関数
+         * 状況に関わらず、全てを停止して初期化する
+         */
+        function resetGame() {
+            if (botInterval) {
+                clearInterval(botInterval);
+            }
+            stopTimer();
+            isBotRunning = false;
+            playerWon = false;
+            botWon = false;
+            moveQueue = [];
+            
+            // 円盤数とモードは維持して、盤面を初期化
+            initGame();
+            messageDisplay.textContent = "🔄 ゲームがリセットされました。モードを選択し、円盤の数と速度を設定して実行を押してください。";
+        }
+
+
+        /**
          * モード選択に応じてUIとレイアウトを更新する (画面分割の制御)
-         * ★ここが画面分割の制御ロジックです。
          */
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
-            const startButton = document.querySelector('#controls button[onclick="startBot()"]');
             const rateRow = document.getElementById('rate-display');
-
+            let buttonLabel = '';
+            
             if (mode === 'versus') {
                 // 対戦モードの場合: 左右に分割
                 botSpeedSelect.parentElement.style.display = 'none'; 
                 rateRow.style.display = 'block';
-                startButton.textContent = 'ボットと対戦開始';
+                buttonLabel = '対戦開始！';
                 
                 // 画面分割を適用
-                wrapper.style.maxWidth = '1000px'; // 全体の最大幅を広げる
-                playerContainer.style.width = '48%'; // プレイヤー盤面を48%に制限
-                botContainer.style.display = 'block'; // ボット盤面を表示
+                wrapper.style.maxWidth = '1000px'; 
+                playerContainer.style.width = '48%'; 
+                botContainer.style.display = 'block'; 
             } else {
                 // 単独モードの場合: 画面いっぱいに広げる
                 botSpeedSelect.parentElement.style.display = 'flex'; 
                 rateRow.style.display = 'none';
-                startButton.textContent = mode === 'manual' ? 'ゲーム開始/リセット' : 'ボット実行 (最小手数)';
+                
+                if (mode === 'manual') {
+                    buttonLabel = 'ゲーム開始！';
+                } else { // bot_only
+                    buttonLabel = 'ボット起動！';
+                }
                 
                 // 画面分割を解除
-                wrapper.style.maxWidth = '90%'; // 全体の最大幅を戻す（画面幅の90%）
-                playerContainer.style.width = '100%'; // プレイヤー盤面を100%にする
-                botContainer.style.display = 'none'; // ボット盤面を非表示
+                wrapper.style.maxWidth = '90%'; 
+                playerContainer.style.width = '100%'; 
+                botContainer.style.display = 'none'; 
             }
             
+            // ★実行ボタンのラベルを更新
+            executeButton.textContent = buttonLabel;
+
+            // 初期化（UI変更時も盤面をリセット）
             initGame();
         }
 
@@ -435,9 +497,11 @@
 
                 botSpeedSelect.value = botSpeed.toString();
                 
-                messageDisplay.textContent = `⚔️ 対戦モード: ボット速度 ${botSpeed}ms で競います！現在のレート ${playerRate}`;
+                messageDisplay.textContent = `⚔️ 対戦モード: ボット速度 ${botSpeed}ms で競います！現在のレート ${playerRate}。実行ボタンで開始。`;
+            } else if (gameMode === 'bot_only') {
+                 messageDisplay.textContent = `🤖 ボットモード: 実行ボタンを押すと自動解決を開始します。`;
             } else {
-                messageDisplay.textContent = "モードを選択し、ゲーム開始/リセットを押してください。";
+                 messageDisplay.textContent = `手動モード: 実行ボタンを押して準備完了。最初の移動でタイマーがスタートします。`;
             }
         }
 
@@ -663,25 +727,24 @@
             const gameMode = gameModeSelect.value;
             
             if (gameMode === 'manual') {
-                messageDisplay.textContent = "ボットなしモードです。手動で操作してください。";
+                // manualモードはexecuteAction()でinitGame()を呼ぶため、ここは実行されない
                 return;
             }
 
+            // 既に実行中の場合はリセットして再開
             if(playerWon || botWon || isBotRunning) {
-                 initGame();
-                 if (gameMode === 'versus') {
-                    messageDisplay.textContent = `⚔️ 対戦準備完了！最初の移動でタイマーとボットがスタートします。`;
-                 }
+                 resetGame();
+                 // resetGameがinitGameを呼んでいるので、再度initGameは不要
             }
 
-            // 対戦モードの場合は、initGame()が呼ばれた後、最初のプレイヤー操作で開始
+            // 対戦モードの場合は、最初のプレイヤー操作でタイマーとボットが開始する
             if (gameMode === 'versus') {
                 messageDisplay.textContent = `⚔️ 対戦準備完了！最初の移動でタイマーとボットがスタートします。`;
                 return;
             }
             
             // ボット単独モードの場合
-            initGame();
+            // initGame()はresetGame()で既に呼ばれている
             isBotRunning = true;
             moveQueue = [];
             solveHanoi(disksCount, 0, 1, 2); 
