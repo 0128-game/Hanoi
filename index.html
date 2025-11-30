@@ -296,7 +296,7 @@
         const wrapper = document.getElementById('game-containers-wrapper');
         const playerContainer = document.getElementById('player-container');
         const executeButton = document.getElementById('execute-button'); 
-        // ★新規追加: ボット速度制御のラッパー
+        // ボット速度制御のラッパー
         const botSpeedControls = document.getElementById('bot-speed-controls');
 
 
@@ -363,9 +363,10 @@
             let buttonLabel = '';
             
             if (mode === 'versus') {
-                // 対戦モードの場合: 左右に分割
-                // ★修正箇所: ボット速度制御のラッパーのみを非表示にする
+                // 対戦モードの場合
+                // ボット速度制御は非表示
                 botSpeedControls.style.display = 'none'; 
+                // レート表示は表示
                 rateRow.style.display = 'block';
                 buttonLabel = '対戦開始！';
                 
@@ -373,17 +374,24 @@
                 wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%'; 
                 botContainer.style.display = 'block'; 
-            } else {
-                // 単独モードの場合: 画面いっぱいに広げる
-                // ★修正箇所: ボット速度制御のラッパーを再表示する
+            } else if (mode === 'bot_only') {
+                 // ボット単独モードの場合
+                // ボット速度制御は表示 (Flexで横並び)
                 botSpeedControls.style.display = 'flex'; 
+                // レート表示は非表示
                 rateRow.style.display = 'none';
+                buttonLabel = 'ボット起動！';
                 
-                if (mode === 'manual') {
-                    buttonLabel = 'ゲーム開始！';
-                } else { // bot_only
-                    buttonLabel = 'ボット起動！';
-                }
+                // 画面分割を解除
+                wrapper.style.maxWidth = '90%'; 
+                playerContainer.style.width = '100%'; 
+                botContainer.style.display = 'none'; 
+            } else { // 'manual' (ボットなし) モードの場合
+                // ボット速度制御は非表示
+                botSpeedControls.style.display = 'none'; 
+                // レート表示は非表示
+                rateRow.style.display = 'none';
+                buttonLabel = 'ゲーム開始！';
                 
                 // 画面分割を解除
                 wrapper.style.maxWidth = '90%'; 
