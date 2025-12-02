@@ -11,15 +11,31 @@
         h1 { color: #6a0dad; margin-bottom: 10px; }
         #controls, #message-area { background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         #message-area { text-align: center; min-height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        #game-board { display: flex; justify-content: space-between; margin-top: 20px; transition: all 0.3s ease; }
-        .player-container, .bot-container { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 0 5px; background-color: #f9f9f9; width: 100%; box-sizing: border-box; }
+        #game-board { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 20px; 
+            transition: all 0.3s ease; 
+            width: 100%; /* ボード全体幅を確保 */
+            box-sizing: border-box;
+        }
+        .player-container, .bot-container { 
+            flex-grow: 1; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            margin: 0 5px; 
+            background-color: #f9f9f9; 
+            box-sizing: border-box;
+            min-width: 200px; /* 最小幅を設定 */
+        }
         .peg-container { display: flex; justify-content: space-around; height: 250px; align-items: flex-end; position: relative; }
         .peg { width: 10px; background-color: #8b4513; height: 100%; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 1; }
         .peg-base { width: 100%; height: 15px; background-color: #5d2b0e; position: absolute; bottom: 0; z-index: 2; border-radius: 3px; }
         .peg-area { width: 30%; height: 100%; position: relative; cursor: pointer; display: flex; flex-direction: column-reverse; align-items: center; justify-content: flex-start; z-index: 3; padding-bottom: 15px; }
         .disk { height: 20px; background-color: #3498db; margin-bottom: 2px; border-radius: 5px; position: relative; z-index: 4; transition: all 0.2s ease-in-out; }
         .disk.selected { border: 3px solid #e74c3c; box-sizing: border-box; margin-top: -20px; }
-        .disk.highlight { background-color: #2ecc71; } /* Bot moves highlight */
+        .disk.highlight { background-color: #2ecc71; }
         
         /* ツールチップのためのCSS */
         .tooltip-container { position: relative; display: inline-block; cursor: help; color: #007bff; border-bottom: 1px dashed #007bff; }
@@ -73,7 +89,7 @@
                 <select id="game-mode" onchange="updateModeDisplay()">
                     <option value="manual" selected>1人用 (手動)</option>
                     <option value="versus">ボットと対戦</option>
-                    <option value="two_player">2人対戦</option>
+                    <option value="two_player">2人対戦 (記録勝負)</option>
                     <option value="bot_only">ボット (自動クリア)</option>
                 </select>
                 
@@ -89,10 +105,9 @@
                     
                     <label for="win-condition" style="font-weight: bold;">勝利条件:</label>
                     <select id="win-condition">
-                        <option value="single_stack_win" selected>最短クリア (最初に全円盤移動)</option>
                         <option value="min_moves_win">最小手数達成</option>
                         <option value="min_time_win">最短時間達成</option>
-                        <option value="mixed_win">ミックス</option>
+                        <option value="mixed_win" selected>ミックス</option>
                     </select>
                     
                     <div class="tooltip-container">
@@ -130,20 +145,20 @@
 
         <div id="game-board">
             <div class="player-container" id="player-container">
-                <h3 style="text-align: center; color: #2980b9;">P1 (キー: 1, 2, 3)</h3>
+                <h3 style="text-align: center; color: #2980b9;" id="p1-title">P1 (キー: 1, 2, 3)</h3>
                 <div class="peg-container">
-                    <div class="peg-area" id="peg-area-1"><div class="peg"></div><div class="peg-base"></div></div>
-                    <div class="peg-area" id="peg-area-2"><div class="peg"></div><div class="peg-base"></div></div>
-                    <div class="peg-area" id="peg-area-3"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="0" id="peg-area-1"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="1" id="peg-area-2"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="2" id="peg-area-3"><div class="peg"></div><div class="peg-base"></div></div>
                 </div>
             </div>
             
             <div class="bot-container" id="bot-container" style="display: none;">
                 <h3 style="text-align: center; color: #c0392b;" id="bot-title">P2 (キー: 4, 5, 6)</h3>
                 <div class="peg-container">
-                    <div class="peg-area" id="bot-peg-area-1"><div class="peg"></div><div class="peg-base"></div></div>
-                    <div class="peg-area" id="bot-peg-area-2"><div class="peg"></div><div class="peg-base"></div></div>
-                    <div class="peg-area" id="bot-peg-area-3"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="0" id="bot-peg-area-1"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="1" id="bot-peg-area-2"><div class="peg"></div><div class="peg-base"></div></div>
+                    <div class="peg-area" data-peg-index="2" id="bot-peg-area-3"><div class="peg"></div><div class="peg-base"></div></div>
                 </div>
             </div>
         </div>
@@ -160,11 +175,12 @@
         const movesDisplay = document.getElementById('moves-display');
         const minMovesDisplay = document.getElementById('min-moves-display');
         const timeDisplay = document.getElementById('time-display');
-        const botSpeedControls = document.getElementById('rate-display'); // ボット設定全体
+        const botSpeedControls = document.getElementById('rate-display');
         const botSpeedInput = document.getElementById('bot-speed');
         const handicapInput = document.getElementById('handicap-moves');
         const botTitle = document.getElementById('bot-title');
-        const twoPlayerSettings = document.getElementById('two-player-settings'); // 2人対戦設定全体
+        const p1Title = document.getElementById('p1-title');
+        const twoPlayerSettings = document.getElementById('two-player-settings');
         const winConditionSelect = document.getElementById('win-condition');
         const timeLimitInput = document.getElementById('time-limit');
 
@@ -191,7 +207,7 @@
         let timerInterval = null;
         let startTime = 0;
         let isTimerRunning = false;
-        let moves = 0; // 全体/P1の手数
+        let moves = 0; // 全体/P1の手数 (非対戦・P1操作時用)
         let minMoves = 7;
         let playerWon = false;
         let botWon = false;
@@ -202,23 +218,18 @@
         let botHandicapMoves = 0;
         let currentBotSpeedMs = 500;
 
-        // ★2人対戦モード用の状態
-        let p1SelectedDisk = null;
-        let p1SourcePegIndex = -1;
-        let p2SelectedDisk = null;
-        let p2SourcePegIndex = -1;
-        let currentPlayer = 1;         
-        let timeLimitMinutes = 0;
-        let winCondition = 'single_stack_win';
-        
-        // ★2人対戦モードの記録
+        // ★2人対戦モードの記録 (非同時並行・記録挑戦制)
         let p1TotalMoves = 0;
         let p2TotalMoves = 0;
         let p1ClearTimeMs = Infinity; 
         let p2ClearTimeMs = Infinity; 
-        let p1HasCleared = false;
-        let p2HasCleared = false;
+        let current2PPlayer = 1; // 1: P1の挑戦, 2: P2の挑戦
+        let p1RecordSet = false; // P1の記録が確定したか
 
+        // 選択状態
+        let selectedDisk = null;
+        let sourcePegIndex = -1;
+        
         // 定数
         const PEG_HEIGHT = 250;
         const DISK_MARGIN = 2;
@@ -228,13 +239,16 @@
         function updateModeDisplay() {
             const mode = gameModeSelect.value;
             
-            let buttonLabel = 'ゲーム開始';
+            // レイアウト調整のリセット
+            wrapper.style.maxWidth = '500px'; 
+            playerContainer.style.width = '100%';
+            botContainer.style.display = 'none';
+
+            // 設定パネルの表示切り替え
+            botSpeedControls.style.display = 'none';
+            twoPlayerSettings.style.display = 'none';
             
-            // 全てのモードで共通して非表示にする設定を初期化
-            botSpeedControls.style.display = 'none'; // ボット設定を非表示
-            twoPlayerSettings.style.display = 'none'; // 2人対戦設定を非表示
-            botTitle.textContent = 'P2 (キー: 4, 5, 6)';
-            botTitle.style.color = '#c0392b';
+            let buttonLabel = 'ゲーム開始';
 
             if (mode === 'versus') {
                 botSpeedControls.style.display = 'flex';
@@ -242,25 +256,21 @@
                 wrapper.style.maxWidth = '1000px'; 
                 playerContainer.style.width = '48%'; 
                 botContainer.style.display = 'block';
+                p1Title.textContent = 'P1 (キー: 1, 2, 3)';
                 botTitle.textContent = 'Bot (自動)';
                 botTitle.style.color = '#2c3e50';
             } else if (mode === 'two_player') {
-                twoPlayerSettings.style.display = 'block'; 
-                buttonLabel = '2人対戦開始';
-                wrapper.style.maxWidth = '1000px'; 
-                playerContainer.style.width = '48%'; 
-                botContainer.style.display = 'block';
+                twoPlayerSettings.style.display = 'block';
+                buttonLabel = 'P1挑戦開始';
+                wrapper.style.maxWidth = '500px'; 
+                playerContainer.style.width = '100%'; 
+                botContainer.style.display = 'none'; // P2の盤面は使わない（P1の盤面を共有）
+                p1Title.textContent = 'P1 挑戦中 (キー: 1, 2, 3)';
             } else if (mode === 'bot_only') {
                 botSpeedControls.style.display = 'flex';
                 buttonLabel = '自動クリア開始';
-                wrapper.style.maxWidth = '500px';
-                playerContainer.style.width = '100%';
-                botContainer.style.display = 'none';
             } else { // manual
                 buttonLabel = '手動モード開始';
-                wrapper.style.maxWidth = '500px';
-                playerContainer.style.width = '100%';
-                botContainer.style.display = 'none';
             }
             
             executeButton.textContent = buttonLabel;
@@ -297,22 +307,45 @@
             isBotRunning = false;
             moveQueue = [];
 
+            // 選択状態リセット
+            resetSelection();
+
             // ★2人対戦用の状態リセットと設定取得
-            currentPlayer = 1; 
-            p1SelectedDisk = null; 
-            p1SourcePegIndex = -1;
-            p2SelectedDisk = null; 
-            p2SourcePegIndex = -1;
+            current2PPlayer = 1; 
             p1TotalMoves = 0;
             p2TotalMoves = 0;
             p1ClearTimeMs = Infinity; 
             p2ClearTimeMs = Infinity; 
-            p1HasCleared = false;
-            p2HasCleared = false;
+            p1RecordSet = false;
             timeLimitMinutes = parseInt(timeLimitInput.value);
             winCondition = winConditionSelect.value;
-
+            
             // 円盤の配置ロジック
+            setupDisks(playerPegsState, playerPegElements);
+            if (gameModeSelect.value === 'versus') {
+                setupDisks(botPegsState, botPegElements);
+            }
+
+            // モードごとの初期メッセージ
+            const mode = gameModeSelect.value;
+            if (mode === 'two_player') {
+                messageDisplay.textContent = `⚔️ 2人対戦(記録勝負)！P1の挑戦を開始してください。`;
+            } else if (mode === 'versus') {
+                currentBotSpeedMs = parseInt(botSpeedInput.value);
+                botHandicapMoves = parseInt(handicapInput.value);
+                messageDisplay.textContent = "⚔️ ボット対戦開始！P1から操作してください。";
+            } else if (mode === 'bot_only') {
+                currentBotSpeedMs = parseInt(botSpeedInput.value);
+                messageDisplay.textContent = "ボットによる自動クリアを開始ボタンで開始します。";
+            } else { // manual
+                messageDisplay.textContent = "手動モードを開始しました。";
+            }
+        }
+        
+        /**
+         * 円盤を杭0に配置する処理
+         */
+        function setupDisks(pegState, pegElements) {
             const totalMarginHeight = (disksCount - 1) * DISK_MARGIN;
             const availableHeight = PEG_HEIGHT - totalMarginHeight;
             const diskHeight = Math.floor(availableHeight / disksCount);
@@ -324,48 +357,17 @@
                 const diskWidth = MIN_WIDTH + ((i - 1) / (disksCount - 1 || 1)) * widthRange;
                 const hue = (i / disksCount) * 360;
 
-                // P1盤面に配置
-                const pDisk = document.createElement('div');
-                pDisk.classList.add('disk');
-                pDisk.dataset.size = i;
-                pDisk.style.width = `${diskWidth}px`;
-                pDisk.style.height = `${diskHeight}px`;
-                pDisk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
-                playerPegElements[0].appendChild(pDisk);
-                playerPegsState[0].push(i);
-
-                // P2盤面（bot-peg）に配置 (2人対戦/ボット対戦時のみ)
-                if (gameModeSelect.value === 'two_player' || gameModeSelect.value === 'versus') {
-                    const bDisk = document.createElement('div');
-                    bDisk.classList.add('disk', 'bot-disk');
-                    bDisk.dataset.size = i;
-                    bDisk.style.width = `${diskWidth}px`;
-                    bDisk.style.height = `${diskHeight}px`;
-                    bDisk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
-                    botPegElements[0].appendChild(bDisk);
-                    botPegsState[0].push(i);
-                }
-            }
-
-            // モードごとの初期メッセージ
-            const mode = gameModeSelect.value;
-            if (mode === 'two_player') {
-                messageDisplay.textContent = `⚔️ 2人対戦開始！P1 (1/2/3キー) のターンです。`;
-                if (timeLimitMinutes > 0) {
-                    messageDisplay.textContent += ` 🕒 制限時間は ${timeLimitMinutes} 分です。`;
-                }
-            } else if (mode === 'versus') {
-                currentBotSpeedMs = parseInt(botSpeedInput.value);
-                botHandicapMoves = parseInt(handicapInput.value);
-                messageDisplay.textContent = "⚔️ ボット対戦開始！P1から操作してください。";
-            } else if (mode === 'bot_only') {
-                currentBotSpeedMs = parseInt(botSpeedInput.value);
-                messageDisplay.textContent = "ボットによる自動クリアを開始ボタンで開始します。";
-            } else {
-                messageDisplay.textContent = "手動モードを開始しました。";
+                const disk = document.createElement('div');
+                disk.classList.add('disk');
+                disk.dataset.size = i;
+                disk.style.width = `${diskWidth}px`;
+                disk.style.height = `${diskHeight}px`;
+                disk.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+                pegElements[0].appendChild(disk);
+                pegState[0].push(i);
             }
         }
-        
+
         // ------------------ タイマー関数 ------------------
 
         function updateTimer() {
@@ -430,15 +432,86 @@
 
             if (gameModeSelect.value === 'two_player') {
                 stopTimer();
-                messageDisplay.textContent = "⌛ タイムアップ！勝敗は判定できませんでした (引き分け)。";
+                if (current2PPlayer === 1) {
+                    p1RecordSet = true;
+                    p1TotalMoves = Infinity;
+                    p1ClearTimeMs = Infinity;
+                    messageDisplay.textContent = "⌛ P1 タイムアップ！記録は無効です。P2の挑戦を開始してください。";
+                    resetGameForP2();
+                } else {
+                    // P2もタイムアップの場合
+                    messageDisplay.textContent = "⌛ P2 タイムアップ！勝負はP1の記録勝ちとなります。";
+                    playerWon = true;
+                    // 勝敗判定を強制実行
+                    checkTwoPlayerWin(false);
+                }
             }
+        }
+
+        // ------------------ ボット制御関数 (ハノイの塔のアルゴリズム) ------------------
+
+        function hanoi(n, source, destination, auxiliary, movesArray) {
+            if (n === 1) {
+                movesArray.push({ from: source, to: destination });
+                return;
+            }
+            hanoi(n - 1, source, auxiliary, destination, movesArray);
+            movesArray.push({ from: source, to: destination });
+            hanoi(n - 1, auxiliary, destination, source, movesArray);
+        }
+
+        function generateBotMovesWithHandicap(n, source, destination, auxiliary, handicap) {
+            moveQueue = [];
+            hanoi(n, source, destination, auxiliary, moveQueue);
+            
+            // ハンデ処理: 最初の数手をスキップ（例: 正確な手順生成後の最初の数手を削除）
+            if (handicap > 0 && moveQueue.length > handicap) {
+                 moveQueue.splice(0, handicap);
+            } else if (handicap > 0 && moveQueue.length <= handicap) {
+                 // 円盤数に対してハンデが大きすぎる場合は警告
+                 console.warn("Handicap is too large for the number of disks.");
+                 moveQueue = []; // 全移動をキャンセル (実質的な敗北)
+            }
+        }
+
+        function startBotMoves(speedMs) {
+            if (isBotRunning || playerWon || botWon || moveQueue.length === 0) return;
+            isBotRunning = true;
+            
+            if (!isTimerRunning) startTimer();
+
+            function nextMove() {
+                if (moveQueue.length === 0 || playerWon || botWon) {
+                    isBotRunning = false;
+                    return;
+                }
+                
+                const move = moveQueue.shift();
+                const source = move.from;
+                const target = move.to;
+
+                // DOM要素と状態を取得 (ボットはbotPegElementsとbotPegsStateを使用)
+                const diskElement = botPegElements[source].querySelector('.disk:last-child');
+                
+                if (attemptMoveUniversal(source, target, botPegElements, botPegsState, diskElement)) {
+                    moves++; movesDisplay.textContent = moves; 
+                    botWinCheck();
+
+                    if (!playerWon && !botWon) {
+                        botMoveTimeout = setTimeout(nextMove, speedMs);
+                    }
+                } else {
+                    // ルール違反が発生した場合 (通常は発生しない)
+                    console.error("Bot made an illegal move.");
+                    isBotRunning = false;
+                }
+            }
+
+            botMoveTimeout = setTimeout(nextMove, speedMs);
         }
 
         // ------------------ ゲームロジック ------------------
 
-        /**
-         * 円盤の移動を試みる (P1/P2/Bot共用)
-         */
         function attemptMoveUniversal(sourceIndex, targetIndex, pegElements, pegState, diskElement) {
             const targetPeg = pegElements[targetIndex];
             const topDiskOnTarget = targetPeg.querySelector('.disk:last-child');
@@ -464,97 +537,135 @@
         }
 
         /**
-         * P1/P2の勝利を判定する（2人対戦モード専用）
+         * 2人対戦（記録挑戦制）の勝利判定
+         * @param {boolean} isP1 - P1の盤面をチェックする場合 true (P2の挑戦時もP1の盤面を使用)
          */
-        function checkTwoPlayerWin(isP1) {
+        function checkTwoPlayerWin(isTimeOver) {
             if (playerWon || botWon) return; 
 
-            const targetState = isP1 ? playerPegsState : botPegsState;
-            
+            // P1/P2どちらの挑戦時もplayerPegsStateを使用
+            const targetState = playerPegsState;
             const isCleared = (targetState[1].length === disksCount) || (targetState[2].length === disksCount);
             
-            // --- 1. 最短クリア (single_stack_win) ---
-            if (winCondition === 'single_stack_win') {
-                if (isCleared) {
-                    const winner = isP1 ? 'P1' : 'P2';
+            if (current2PPlayer === 1) {
+                // P1のクリア処理
+                if (isCleared || isTimeOver) {
                     stopTimer();
-                    playerWon = isP1;
-                    botWon = !isP1; 
-                    messageDisplay.textContent = `🎉 ${winner} の勝利です！ (最短クリア達成) タイム: ${timeDisplay.textContent}、手数: ${isP1 ? p1TotalMoves : p2TotalMoves} 回`;
-                    return;
-                }
-            }
-
-            // --- 2. 総合記録制の準備（記録の保持） ---
-            if (isCleared) {
-                if (isP1 && !p1HasCleared) {
-                    p1HasCleared = true;
-                    p1ClearTimeMs = Date.now() - startTime;
-                } else if (!isP1 && !p2HasCleared) {
-                    p2HasCleared = true;
-                    p2ClearTimeMs = Date.now() - startTime;
-                }
-            }
-
-            // --- 3. 総合記録制の勝敗決定（両者クリアが前提） ---
-            if (p1HasCleared && p2HasCleared) {
-                stopTimer();
-                let winnerMessage = '';
-                let p1Score = 0;
-                let p2Score = 0;
-                
-                const M = minMoves; 
-
-                if (winCondition === 'min_moves_win') {
-                    p1Score = p1TotalMoves;
-                    p2Score = p2TotalMoves;
-                    winnerMessage = '最小手数';
-                } else if (winCondition === 'min_time_win') {
-                    p1Score = p1ClearTimeMs;
-                    p2Score = p2ClearTimeMs;
-                    winnerMessage = '最短時間';
-                } else if (winCondition === 'mixed_win') {
-                    // ミックス効率スコア: Score = Time (秒) × (Actual Moves / Minimum Moves)
-                    const p1TimeSec = p1ClearTimeMs / 1000;
-                    const p2TimeSec = p2ClearTimeMs / 1000;
+                    p1RecordSet = true;
+                    p1TotalMoves = moves;
+                    p1ClearTimeMs = isTimeOver ? Infinity : (Date.now() - startTime);
                     
-                    p1Score = p1TimeSec * (p1TotalMoves / M);
-                    p2Score = p2TimeSec * (p2TotalMoves / M);
-                    
-                    winnerMessage = 'ミックス効率スコア';
+                    if (isTimeOver) {
+                        // タイムオーバーはinitGame()の外で処理
+                    } else {
+                        messageDisplay.textContent = `✅ P1クリア！記録: 手数${p1TotalMoves}回, 時間${(p1ClearTimeMs/1000).toFixed(2)}秒。P2の挑戦を開始してください。`;
+                    }
+                    resetGameForP2();
                 }
+            } else if (current2PPlayer === 2) {
+                // P2のクリア処理
+                if (isCleared || isTimeOver) {
+                    stopTimer();
+                    p2TotalMoves = moves;
+                    p2ClearTimeMs = isTimeOver ? Infinity : (Date.now() - startTime);
 
-                if (p1Score < p2Score) {
-                    playerWon = true;
-                    messageDisplay.textContent = `🎉 P1 の勝利です！ (${winnerMessage}達成)`;
-                } else if (p2Score < p1Score) {
-                    botWon = true;
-                    messageDisplay.textContent = `🎉 P2 の勝利です！ (${winnerMessage}達成)`;
-                } else {
-                    messageDisplay.textContent = `🤝 引き分けです！ (${winnerMessage}が同点)`;
+                    if (isTimeOver) {
+                         messageDisplay.textContent = `❌ P2 タイムアップ！勝敗判定に入ります...`;
+                    } else {
+                         messageDisplay.textContent = `✅ P2クリア！記録: 手数${p2TotalMoves}回, 時間${(p2ClearTimeMs/1000).toFixed(2)}秒。勝敗判定に入ります...`;
+                    }
+                    
+                    // 勝敗判定
+                    determineWinner();
                 }
-                
-                // 詳細スコアの表示
-                let detailMessage = ` P1記録: 手数${p1TotalMoves}回, 時間${(p1ClearTimeMs/1000).toFixed(2)}秒`;
-                detailMessage += ` | P2記録: 手数${p2TotalMoves}回, 時間${(p2ClearTimeMs/1000).toFixed(2)}秒`;
-                if (winCondition === 'mixed_win') {
-                    detailMessage += ` | P1スコア: ${p1Score.toFixed(2)}, P2スコア: ${p2Score.toFixed(2)}`;
-                }
-                messageDisplay.textContent += detailMessage;
             }
+        }
+
+        function determineWinner() {
+            let winnerMessage = '';
+            let p1Score = 0;
+            let p2Score = 0;
+            const M = minMoves; 
+
+            // P1がタイムオーバーで記録無しの場合
+            if (p1ClearTimeMs === Infinity && p2ClearTimeMs !== Infinity) {
+                botWon = true; // P2の勝利
+                messageDisplay.textContent += ` 🎉 P2の勝利です！(P1記録無し)`;
+                return;
+            }
+            if (p2ClearTimeMs === Infinity && p1ClearTimeMs !== Infinity) {
+                playerWon = true; // P1の勝利
+                messageDisplay.textContent += ` 🎉 P1の勝利です！(P2記録無し)`;
+                return;
+            }
+            if (p1ClearTimeMs === Infinity && p2ClearTimeMs === Infinity) {
+                messageDisplay.textContent += ` 🤝 引き分けです。(両者記録無し)`;
+                return;
+            }
+
+
+            if (winCondition === 'min_moves_win') {
+                p1Score = p1TotalMoves;
+                p2Score = p2TotalMoves;
+                winnerMessage = '最小手数';
+            } else if (winCondition === 'min_time_win') {
+                p1Score = p1ClearTimeMs;
+                p2Score = p2ClearTimeMs;
+                winnerMessage = '最短時間';
+            } else if (winCondition === 'mixed_win') {
+                // ミックス効率スコア: Score = Time (秒) × (Actual Moves / Minimum Moves)
+                const p1TimeSec = p1ClearTimeMs / 1000;
+                const p2TimeSec = p2ClearTimeMs / 1000;
+                
+                p1Score = p1TimeSec * (p1TotalMoves / M);
+                p2Score = p2TimeSec * (p2TotalMoves / M);
+                
+                winnerMessage = 'ミックス効率スコア';
+            }
+
+            if (p1Score < p2Score) {
+                playerWon = true;
+                messageDisplay.textContent = ` 🎉 P1 の勝利です！ (${winnerMessage}達成)`;
+            } else if (p2Score < p1Score) {
+                botWon = true; // P2の勝利
+                messageDisplay.textContent = ` 🎉 P2 の勝利です！ (${winnerMessage}達成)`;
+            } else {
+                messageDisplay.textContent = ` 🤝 引き分けです！ (${winnerMessage}が同点)`;
+            }
+            
+            // 詳細スコアの表示
+            let detailMessage = ` | P1記録: 手数${p1TotalMoves}回, 時間${(p1ClearTimeMs/1000).toFixed(2)}秒`;
+            detailMessage += ` | P2記録: 手数${p2TotalMoves}回, 時間${(p2ClearTimeMs/1000).toFixed(2)}秒`;
+            if (winCondition === 'mixed_win') {
+                detailMessage += ` | P1スコア: ${p1Score.toFixed(2)}, P2スコア: ${p2Score.toFixed(2)}`;
+            }
+            messageDisplay.textContent += detailMessage;
+        }
+
+        function resetGameForP2() {
+            current2PPlayer = 2;
+            executeButton.textContent = 'P2挑戦開始';
+            
+            // 盤面と手数をリセット
+            playerPegsState = [[], [], []];
+            playerPegElements.forEach(peg => { while (peg.querySelector('.disk')) peg.querySelector('.disk').remove(); });
+            setupDisks(playerPegsState, playerPegElements);
+            
+            moves = 0;
+            movesDisplay.textContent = 0;
+            timeDisplay.textContent = "00:00.00";
+            
+            p1Title.textContent = `P2 挑戦中 (目標: P1の記録を上回れ!)`;
         }
         
         // 既存の勝利判定関数（ボット/手動モード用）
         function checkWin() { 
-            const mode = gameModeSelect.value;
-            // P1が解いたかどうか（通常は杭2か杭3に全円盤）
             if (playerPegsState[1].length === disksCount || playerPegsState[2].length === disksCount) {
                 if (!playerWon) {
                     playerWon = true;
                     stopTimer();
                     messageDisplay.textContent = `🎉 P1 の勝利です！タイム: ${timeDisplay.textContent}、手数: ${moves} 回`;
-                    // ボット対戦モードの場合、ここでボットの動きを停止させる
-                    if (mode === 'versus') {
+                    if (gameModeSelect.value === 'versus') {
                         if (botMoveTimeout) clearTimeout(botMoveTimeout);
                         isBotRunning = false;
                     }
@@ -563,8 +674,7 @@
         }
         
         function botWinCheck() { 
-             const mode = gameModeSelect.value;
-             // ボット/P2が解いたかどうか
+            const mode = gameModeSelect.value;
             if (botPegsState[1].length === disksCount || botPegsState[2].length === disksCount) {
                 if (!botWon) {
                     botWon = true;
@@ -572,7 +682,6 @@
                     if(mode === 'versus') {
                         messageDisplay.textContent = `😭 ボットの勝利です。タイム: ${timeDisplay.textContent}、手数: ${moves} 回`;
                     }
-                    // ボット自動クリアモードの場合、ここで停止
                     if (mode === 'bot_only') {
                         messageDisplay.textContent = `✅ ボットがクリアしました！タイム: ${timeDisplay.textContent}、手数: ${moves} 回`;
                         if (botMoveTimeout) clearTimeout(botMoveTimeout);
@@ -581,149 +690,45 @@
                 }
             }
         }
-        
-        // ------------------ ボット制御関数 (ハノイの塔のアルゴリズム) ------------------
-
-        /**
-         * ハノイの塔の最小手数解を再帰的に生成する
-         * @param {number} n - 円盤の数
-         * @param {number} source - 始点の杭 (0, 1, 2)
-         * @param {number} destination - 終点の杭 (0, 1, 2)
-         * @param {number} auxiliary - 作業用の杭 (0, 1, 2)
-         * @param {Array} movesArray - 移動手順を格納する配列
-         */
-        function hanoi(n, source, destination, auxiliary, movesArray) {
-            if (n === 1) {
-                movesArray.push({ from: source, to: destination });
-                return;
-            }
-            hanoi(n - 1, source, auxiliary, destination, movesArray);
-            movesArray.push({ from: source, to: destination });
-            hanoi(n - 1, auxiliary, destination, source, movesArray);
-        }
-
-        /**
-         * ボットの手順を生成し、ハンデを適用する
-         * @param {number} n - 円盤の数
-         * @param {number} source - 始点
-         * @param {number} destination - 終点
-         * @param {number} auxiliary - 作業杭
-         * @param {number} handicap - ハンデ手数
-         */
-        function generateBotMovesWithHandicap(n, source, destination, auxiliary, handicap) {
-            moveQueue = [];
-            hanoi(n, source, destination, auxiliary, moveQueue);
-            
-            // ハンデ処理（最初の数手/最後の数手を削るなど、単純化のため、ここでは最初の数手をスキップする処理は実装していません）
-            // 例: if (handicap > 0) moveQueue.splice(0, handicap);
-        }
-
-        /**
-         * ボットの移動を開始する
-         * @param {number} speedMs - 移動速度 (ms)
-         */
-        function startBotMoves(speedMs) {
-            if (isBotRunning || playerWon || botWon || moveQueue.length === 0) return;
-            isBotRunning = true;
-            
-            if (!isTimerRunning) startTimer();
-
-            function nextMove() {
-                if (moveQueue.length === 0 || playerWon || botWon) {
-                    isBotRunning = false;
-                    return;
-                }
-                
-                const move = moveQueue.shift();
-                const source = move.from;
-                const target = move.to;
-
-                // DOM要素と状態を取得
-                const diskElement = botPegElements[source].querySelector('.disk:last-child');
-                
-                if (attemptMoveUniversal(source, target, botPegElements, botPegsState, diskElement)) {
-                    moves++; movesDisplay.textContent = moves; // ボットの手数も全体手数にカウント
-                    botWinCheck();
-
-                    if (!playerWon && !botWon) {
-                        botMoveTimeout = setTimeout(nextMove, speedMs);
-                    }
-                } else {
-                    // ルール違反が発生した場合 (通常は発生しない)
-                    isBotRunning = false;
-                }
-            }
-
-            botMoveTimeout = setTimeout(nextMove, speedMs);
-        }
 
 
         // ------------------ 選択状態のリセット ------------------
 
-        /**
-         * 選択状態をリセットする
-         * @param {boolean|null} isP1 - リセット対象がP1ならtrue, P2ならfalse, null/undefinedなら全体
-         */
-        function resetSelection(isP1 = undefined) {
-            if (isP1 === true || isP1 === undefined) {
-                if (p1SelectedDisk) p1SelectedDisk.classList.remove('selected');
-                p1SelectedDisk = null;
-                p1SourcePegIndex = -1;
-            }
-            if (isP1 === false || isP1 === undefined) {
-                if (p2SelectedDisk) p2SelectedDisk.classList.remove('selected');
-                p2SelectedDisk = null;
-                p2SourcePegIndex = -1;
-            }
+        function resetSelection() {
+            if (selectedDisk) selectedDisk.classList.remove('selected');
+            selectedDisk = null;
+            sourcePegIndex = -1;
         }
         
         // ------------------ キーボード入力処理 ------------------
 
         function handleKeyPress(event) {
             const mode = gameModeSelect.value;
-            if (mode === 'bot_only' || isBotRunning) return; // ボットモード中は入力を無視
-
+            if (mode === 'bot_only' || isBotRunning) return; 
             if (playerWon || botWon) return; 
 
             const key = event.key;
             let pegIndex = -1;
-            let isP1Move = false;
-            let playerNumber = -1;
+            let playerNumber = 1; // 常にP1/P2の挑戦者（playerPegsStateを使用）
 
+            // キー入力はP1/P2ともに1, 2, 3を使用 (2人対戦モードでは盤面を共有するため)
             if (key === '1' || key === '2' || key === '3') {
                 pegIndex = parseInt(key) - 1; 
-                isP1Move = true;
-                playerNumber = 1;
-            } else if (key === '4' || key === '5' || key === '6') {
-                pegIndex = parseInt(key) - 4;
-                isP1Move = false;
-                playerNumber = 2;
             } else if (key === 'Escape') {
-                resetSelection(undefined); // 全体リセット
+                resetSelection();
                 messageDisplay.textContent = "選択をリセットしました。";
                 return;
             } else {
                 return; 
             }
             
-            // --- モードとターン制の排他制御 ---
-            if (mode === 'two_player' && playerNumber !== currentPlayer) {
-                messageDisplay.textContent = `P${playerNumber} の操作はできません。現在は P${currentPlayer} のターンです。`;
-                return;
-            }
-            if ((mode === 'versus' || mode === 'manual') && !isP1Move) {
-                messageDisplay.textContent = "このモードではP1の盤面（1/2/3キー）のみ操作します。";
-                return;
-            }
-
-            // --- P1/P2別 選択状態の取得 ---
-            const targetPegElements = isP1Move ? playerPegElements : botPegElements;
-            let currentSelectedDisk = isP1Move ? p1SelectedDisk : p2SelectedDisk;
-            let currentSourceIndex = isP1Move ? p1SourcePegIndex : p2SourcePegIndex;
+            // 2人対戦モードではP1の盤面のみ使用
+            const targetPegElements = playerPegElements;
+            const pegState = playerPegsState;
             
             const currentPegElement = targetPegElements[pegIndex];
             
-            if (currentSourceIndex === -1) {
+            if (sourcePegIndex === -1) {
                 // --- 1. 円盤の選択 ---
                 const topDisk = currentPegElement.querySelector('.disk:last-child');
                 if (topDisk) {
@@ -733,85 +738,86 @@
                          if(mode === 'versus') {
                              generateBotMovesWithHandicap(disksCount, 0, 1, 2, botHandicapMoves);
                              startBotMoves(currentBotSpeedMs);
-                         } else if (mode === 'bot_only') {
-                             // bot_onlyはボタンクリックで開始するため、ここでは何もしない
-                         }
+                         } 
                     } 
 
                     topDisk.classList.add('selected');
-                    
-                    if (isP1Move) {
-                        p1SourcePegIndex = pegIndex;
-                        p1SelectedDisk = topDisk;
-                    } else {
-                        p2SourcePegIndex = pegIndex;
-                        p2SelectedDisk = topDisk;
-                    }
-                    messageDisplay.textContent = `P${playerNumber}: 杭 ${pegIndex + 1} を始点として選択。移動先を押してください。`;
+                    sourcePegIndex = pegIndex;
+                    selectedDisk = topDisk;
+                    messageDisplay.textContent = `P${current2PPlayer}: 杭 ${pegIndex + 1} を始点として選択。移動先を押してください。`;
                 } else {
-                    messageDisplay.textContent = `P${playerNumber}: 杭 ${pegIndex + 1} には動かせる円盤がありません。`;
+                    messageDisplay.textContent = `P${current2PPlayer}: 杭 ${pegIndex + 1} には動かせる円盤がありません。`;
                 }
             } else {
                 // --- 2. 円盤の移動 ---
                 const targetPegIndex = pegIndex;
-                if (currentSourceIndex === targetPegIndex) {
-                    resetSelection(isP1Move); 
-                    messageDisplay.textContent = `P${playerNumber}: 選択を解除しました。`;
+                if (sourcePegIndex === targetPegIndex) {
+                    resetSelection(); 
+                    messageDisplay.textContent = `P${current2PPlayer}: 選択を解除しました。`;
                     return;
                 }
 
                 const isSuccess = attemptMoveUniversal(
-                    currentSourceIndex, 
+                    sourcePegIndex, 
                     targetPegIndex, 
                     targetPegElements,
-                    isP1Move ? playerPegsState : botPegsState,
-                    currentSelectedDisk
+                    pegState,
+                    selectedDisk
                 );
 
                 if (isSuccess) {
-                    // 移動成功時の処理
-                    if (isP1Move) {
-                        moves++; movesDisplay.textContent = moves; 
-                        p1TotalMoves++;
-                    } else if (mode === 'two_player') {
-                        p2TotalMoves++;
-                    }
+                    moves++; movesDisplay.textContent = moves; 
                     
                     // 勝利判定
                     if (mode === 'two_player') {
-                        checkTwoPlayerWin(isP1Move);
+                        checkTwoPlayerWin(false); // 2人対戦の記録判定
                     } else if (mode === 'versus' || mode === 'manual') {
-                        checkWin(); 
-                    }
-                    
-                    // ターン切り替え (2人対戦モードのみ)
-                    if (!playerWon && !botWon && mode === 'two_player') {
-                        currentPlayer = (currentPlayer === 1) ? 2 : 1;
-                        messageDisplay.textContent = `P${currentPlayer} のターンです。`;
+                        checkWin(); // 1人プレイ、ボット対戦の勝利判定
                     }
                 } else {
-                    messageDisplay.textContent = `P${playerNumber}: ルール違反です。ターンはそのまま継続します。`;
+                    messageDisplay.textContent = `P${playerNumber}: ルール違反です。`;
                 }
                 
-                resetSelection(isP1Move); 
+                resetSelection(); 
             }
         }
 
         // イベントリスナー
         document.addEventListener('keydown', handleKeyPress);
         
-        // ボット自動クリアの開始ボタン処理
+        // 開始ボタン処理
         executeButton.onclick = function() {
-            if (gameModeSelect.value === 'bot_only') {
+            const mode = gameModeSelect.value;
+            
+            if (mode === 'two_player' && !p1RecordSet) {
+                // P1の挑戦開始
+                initGame();
+                messageDisplay.textContent = `P1の挑戦開始！最短でのクリアを目指してください。`;
+                executeButton.textContent = 'P1挑戦中...';
+                executeButton.disabled = true;
+                // タイマーは最初の操作で開始
+            } else if (mode === 'two_player' && p1RecordSet) {
+                // P2の挑戦開始
+                resetGameForP2();
+                messageDisplay.textContent = `P2の挑戦開始！P1の記録 (${winConditionSelect.options[winConditionSelect.selectedIndex].text}) を超えろ！`;
+                executeButton.textContent = 'P2挑戦中...';
+                executeButton.disabled = true;
+                // タイマーは最初の操作で開始
+            } else if (mode === 'bot_only') {
+                // ボット自動クリア
                 initGame();
                 currentBotSpeedMs = parseInt(botSpeedInput.value);
-                generateBotMovesWithHandicap(disksCount, 0, 2, 1, 0); // 杭0から杭2へ移動
+                // ボット自動クリアはP1の盤面 (playerPegsState) を使って、杭0から杭2へ移動
+                generateBotMovesWithHandicap(disksCount, 0, 2, 1, 0); 
                 startBotMoves(currentBotSpeedMs);
+                executeButton.textContent = '自動クリア中...';
+                executeButton.disabled = true;
             } else {
+                // 手動/ボット対戦（最初の操作でタイマー開始）
                 initGame();
             }
         };
-        
+
         window.onload = updateModeDisplay; 
     </script>
 </body>
